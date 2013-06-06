@@ -552,6 +552,7 @@ if [[ ! $quiet ]]; then
 
         $ source ~/.virtualenvs/edx-platform/bin/activate
 
+
    To start the Django on port 8000
 
         $ rake lms
