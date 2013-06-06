@@ -409,14 +409,22 @@ fi
 # Create edX virtualenv and link it to repo
 # virtualenvwrapper automatically sources the activation script
 if [[ $systempkgs ]]; then
+<<<<<<< HEAD
     mkvirtualenv -q -a "$WORKON_HOME" --system-site-packages edx-platform || {
+=======
+    mkvirtualenv -a "$PYTHON_DIR" --system-site-packages edx-platform || {
+>>>>>>> Changed hard-coded virtualenv location to allow for easier bash script editing
       error "mkvirtualenv exited with a non-zero error"
       return 1
     }
 else
     # default behavior for virtualenv>1.7 is
     # --no-site-packages
+<<<<<<< HEAD
     mkvirtualenv -q -a "$WORKON_HOME" edx-platform || {
+=======
+    mkvirtualenv -a "$PYTHON_DIR" edx-platform || {
+>>>>>>> Changed hard-coded virtualenv location to allow for easier bash script editing
       error "mkvirtualenv exited with a non-zero error"
       return 1
     }
