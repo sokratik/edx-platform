@@ -1,77 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
 <head>
-	${css_link("../static/css/search.css")}
-	${js_link("../static/js/search.js")}
+
+	<meta charset="utf-8" />
+	<title>Results</title>
+
+	<link rel="stylesheet" href="../static/css/results.css" type="text/css" />
+
 </head>
 
-% if debug:
-    <p>"${debug}"</p>
-% endif
-
-% if spelling_correction:
-<div class="correction_div">
-	<p class="search_correction">
-		<span>Did you mean </span>
-		<a onclick="correctionLink(event, '${spelling_correction}')">${spelling_correction}</a>
-		<span>?</span>
-	</p>
-</div>
-% endif
-
-<div class="search-results">
-    % if results == True:
-    	% for datum in data:
-    		<a href=${datum.data["url"]}>
-    			<section class="result">
-    				<div class="result_wrapper">
-    					<h1 class="result-title">${datum.data['display_name']}</h1>
-    					<div class="result-content">
-    						<div class="columnate">
-    							<img class="thumbnail" src="${datum.data['thumbnail']}" alt="${datum.data['display_name']}">
-    						</div>
-    						<div class="columnate">
-    							<div class="snippet_container">
-    								<p  class="results_snippet scaled-text">
-    									${datum.data['snippets']}
-    								</p>
-    							</div>
-    						</div>
-    					</div>
-    				</div>
-    			</section>
-    		</a>
-    	% endfor
-    % else:
-        <h1 class="result-title no-results">"No results found, please try again"</h1>
-    % endif
-</div>
-
-% if len(data) > 1:
-	<div class="pagination">
-		<span class="step-links">
-			% if data.number > 1:
-				<a onclick="decrementPage()">Prev</a>
-			% endif
-
-			<form id="current-page" class="auto-submit" action="/search" method="get">
-                <span class="current-page">
-				    Page 
-                    <input type="number" class="parameter" name="page" value="${ data.number }" onkeydown="searchHandle(event, true)" onchange="changeHandler(this, ${data.paginator.num_pages})"/> 
-                    of ${ data.paginator.num_pages }
-                </span>
-			</form> 
-
-			% if data.number < data.paginator.num_pages:
-				<a onclick="incrementPage()">Next</a>
-			%endif
-		</span>
+<body>
+	{% if search_correction %}
+	<div class="correction_div">
+		<p class="search_correction">
+			Did you Mean: {{ search_correction }} ?
+		</p>
 	</div>
-% endif
-
-
-<%def name="css_link(path, media='')">
-	<link rel="stylesheet" type="text/css" href="${path|h}" media="${media}"></link>
-</%def>
-
-<%def name="js_link(path)">
-	<script type="text/javascript" src="${path|h}"></script>
-</%def>
+	{% endif %}
+	<ol>
+		{% for datum in data %}
+		<li>
+			<div>
+				<h1>{{ datum.0 }}</h1>
+				<!-- </h2>Score:</h2> -->
+				<p class="results_snippet"> 
+					{{ datum.1|safe }}
+				</p>
+			</div>
+		</li>
+		{% endfor %}
+	</ol>
+</body>
