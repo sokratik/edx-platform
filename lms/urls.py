@@ -4,7 +4,7 @@ from django.contrib import admin
 from django.conf.urls.static import static
 
 # Not used, the work is done in the imported module.
-from . import one_time_startup  # pylint: disable=W0611
+from . import one_time_startup      # pylint: disable=W0611
 
 import django.contrib.auth.views
 
@@ -16,7 +16,7 @@ urlpatterns = ('',  # nopep8
     # certificate view
 
     url(r'^update_certificate$', 'certificates.views.update_certificate'),
-    url(r'^$', 'branding.views.index', name="root"),  # Main marketing page, or redirect to courseware
+    url(r'^$', 'branding.views.index', name="root"),   # Main marketing page, or redirect to courseware
     url(r'^dashboard$', 'student.views.dashboard', name="dashboard"),
     url(r'^login$', 'student.views.signin_user', name="signin_user"),
     url(r'^register$', 'student.views.register_user', name="register_user"),
@@ -30,7 +30,7 @@ urlpatterns = ('',  # nopep8
     url(r'^reject_name_change$', 'student.views.reject_name_change'),
     url(r'^pending_name_changes$', 'student.views.pending_name_changes'),
     url(r'^event$', 'track.views.user_track'),
-    url(r'^t/(?P<template>[^/]*)$', 'static_template_view.views.index'),  # TODO: Is this used anymore? What is STATIC_GRAB?
+    url(r'^t/(?P<template>[^/]*)$', 'static_template_view.views.index'),   # TODO: Is this used anymore? What is STATIC_GRAB?
 
     url(r'^accounts/login$', 'student.views.accounts_login', name="accounts_login"),
 
@@ -65,7 +65,7 @@ urlpatterns = ('',  # nopep8
 if not settings.MITX_FEATURES["USE_CUSTOM_THEME"]:
     urlpatterns += (
         ##
-        ## Only universities without courses should be included here. If
+        ## Only universities without courses should be included here.  If
         ## courses exist, the dynamic profile rule below should win.
         ##
         url(r'^(?i)university_profile/WellesleyX$', 'courseware.views.static_university_profile',
@@ -109,7 +109,7 @@ urlpatterns += (
         {'template': 'privacy.html'}, name="privacy_edx"),
     # TODO: (bridger) The copyright has been removed until it is updated for edX
     # url(r'^copyright$', 'static_template_view.views.render',
-    # {'template': 'copyright.html'}, name="copyright"),
+    #     {'template': 'copyright.html'}, name="copyright"),
     url(r'^honor$', 'static_template_view.views.render',
         {'template': 'honor.html'}, name="honor"),
 
@@ -119,11 +119,14 @@ urlpatterns += (
     # Favicon
     (r'^favicon\.ico$', 'django.views.generic.simple.redirect_to', {'url': '/static/images/favicon.ico'}),
 
+    url(r'^submit_feedback$', 'util.views.submit_feedback_via_zendesk'),
+
     # TODO: These urls no longer work. They need to be updated before they are re-enabled
     # url(r'^reactivate/(?P<key>[^/]*)$', 'student.views.reactivation_email'),
 
     # Search
-    url(r'^search$', 'search.views.search')
+    url(r'^search$', 'search.views.search'),
+
 )
 
 # Semi-static views only used by edX, not by themes
@@ -141,7 +144,7 @@ if not settings.MITX_FEATURES["USE_CUSTOM_THEME"]:
 
         # TODO: (bridger) The copyright has been removed until it is updated for edX
         # url(r'^copyright$', 'static_template_view.views.render',
-        # {'template': 'copyright.html'}, name="copyright"),
+        #     {'template': 'copyright.html'}, name="copyright"),
 
         #Press releases
         url(r'^press/([_a-zA-Z0-9-]+)$', 'static_template_view.views.render_press_release', name='press_release'),
@@ -249,36 +252,33 @@ if settings.COURSEWARE_ENABLED:
         url(r'^mktg/(?P<course_id>.*)$',
             'courseware.views.mktg_course_about', name="mktg_about_course"),
 
-
-
         #Inside the course
         url(r'^courses/(?P<course_id>[^/]+/[^/]+/[^/]+)/$',
             'courseware.views.course_info', name="course_root"),
         url(r'^courses/(?P<course_id>[^/]+/[^/]+/[^/]+)/info$',
             'courseware.views.course_info', name="info"),
         url(r'^courses/(?P<course_id>[^/]+/[^/]+/[^/]+)/syllabus$',
-            'courseware.views.syllabus', name="syllabus"),  # TODO arjun remove when custom tabs in place, see courseware/courses.py
-        url(r'^courses/(?P<course_id>[^/]+/[^/]+/[^/]+)/book/(?P<book_index>[^/]*)/$',
+            'courseware.views.syllabus', name="syllabus"),   # TODO arjun remove when custom tabs in place, see courseware/courses.py
+
+        url(r'^courses/(?P<course_id>[^/]+/[^/]+/[^/]+)/book/(?P<book_index>\d+)/$',
             'staticbook.views.index', name="book"),
-        url(r'^courses/(?P<course_id>[^/]+/[^/]+/[^/]+)/book/(?P<book_index>[^/]*)/(?P<page>[^/]*)$',
-            'staticbook.views.index'),
-        url(r'^courses/(?P<course_id>[^/]+/[^/]+/[^/]+)/book-shifted/(?P<page>[^/]*)$',
-            'staticbook.views.index'),
+        url(r'^courses/(?P<course_id>[^/]+/[^/]+/[^/]+)/book/(?P<book_index>\d+)/(?P<page>\d+)$',
+            'staticbook.views.index', name="book"),
 
-        url(r'^courses/(?P<course_id>[^/]+/[^/]+/[^/]+)/pdfbook/(?P<book_index>[^/]*)/$',
+        url(r'^courses/(?P<course_id>[^/]+/[^/]+/[^/]+)/pdfbook/(?P<book_index>\d+)/$',
             'staticbook.views.pdf_index', name="pdf_book"),
-        url(r'^courses/(?P<course_id>[^/]+/[^/]+/[^/]+)/pdfbook/(?P<book_index>[^/]*)/(?P<page>[^/]*)$',
-            'staticbook.views.pdf_index'),
+        url(r'^courses/(?P<course_id>[^/]+/[^/]+/[^/]+)/pdfbook/(?P<book_index>\d+)/(?P<page>\d+)$',
+            'staticbook.views.pdf_index', name="pdf_book"),
 
-        url(r'^courses/(?P<course_id>[^/]+/[^/]+/[^/]+)/pdfbook/(?P<book_index>[^/]*)/chapter/(?P<chapter>[^/]*)/$',
-            'staticbook.views.pdf_index'),
-        url(r'^courses/(?P<course_id>[^/]+/[^/]+/[^/]+)/pdfbook/(?P<book_index>[^/]*)/chapter/(?P<chapter>[^/]*)/(?P<page>[^/]*)$',
-            'staticbook.views.pdf_index'),
+        url(r'^courses/(?P<course_id>[^/]+/[^/]+/[^/]+)/pdfbook/(?P<book_index>\d+)/chapter/(?P<chapter>\d+)/$',
+            'staticbook.views.pdf_index', name="pdf_book"),
+        url(r'^courses/(?P<course_id>[^/]+/[^/]+/[^/]+)/pdfbook/(?P<book_index>\d+)/chapter/(?P<chapter>\d+)/(?P<page>\d+)$',
+            'staticbook.views.pdf_index', name="pdf_book"),
 
-        url(r'^courses/(?P<course_id>[^/]+/[^/]+/[^/]+)/htmlbook/(?P<book_index>[^/]*)/$',
+        url(r'^courses/(?P<course_id>[^/]+/[^/]+/[^/]+)/htmlbook/(?P<book_index>\d+)/$',
             'staticbook.views.html_index', name="html_book"),
-        url(r'^courses/(?P<course_id>[^/]+/[^/]+/[^/]+)/htmlbook/(?P<book_index>[^/]*)/chapter/(?P<chapter>[^/]*)/$',
-            'staticbook.views.html_index'),
+        url(r'^courses/(?P<course_id>[^/]+/[^/]+/[^/]+)/htmlbook/(?P<book_index>\d+)/chapter/(?P<chapter>\d+)/$',
+            'staticbook.views.html_index', name="html_book"),
 
         url(r'^courses/(?P<course_id>[^/]+/[^/]+/[^/]+)/courseware/?$',
             'courseware.views.index', name="courseware"),
@@ -463,6 +463,13 @@ urlpatterns += (
 if settings.MITX_FEATURES.get('ENABLE_DEBUG_RUN_PYTHON'):
     urlpatterns += (
         url(r'^debug/run_python', 'debug.views.run_python'),
+    )
+
+# Crowdsourced hinting instructor manager.
+if settings.MITX_FEATURES.get('ENABLE_HINTER_INSTRUCTOR_VIEW'):
+    urlpatterns += (
+        url(r'^courses/(?P<course_id>[^/]+/[^/]+/[^/]+)/hint_manager$',
+            'instructor.hint_manager.hint_manager', name="hint_manager"),
     )
 
 urlpatterns = patterns(*urlpatterns)
