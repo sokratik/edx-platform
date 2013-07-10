@@ -1,4 +1,4 @@
- ;(function($) {
+;(function($) {
     $.fn.textfill = function(options) {
         var fontSize = options.maxFont;
         var ourText = $('span:visible:first', this);
@@ -16,56 +16,24 @@
     };
 })(jQuery);
 
-function correctionLink(event, spelling_correction){
-    $("#searchbox")[0].value = spelling_correction;
-    submitForms(false);
-}
-
-function submitForms(retain_page) {
+function submitForms(id_array) {
     var get_data = [];
-    var form_list = $(".auto-submit .parameter");
-    for (var i in form_list){
-        get_data.push.apply(get_data, form_list.eq(i).serializeArray());
+    for (var i=0;i<id_array.length;i++){
+        get_data.push.apply(get_data, $('#'+id_array[i]).serializeArray());
     }
+    console.log(get_data);
     var url = document.URL.split("?")[0]+"?";
     for (var o in get_data){
-        if (retain_page === false){
-            if (get_data[o].name == "page"){
-                get_data[o].value = 1;
-            }
-        }
         url = url + (get_data[o].name + "=" +get_data[o].value + "&");
     }
     document.location.href = url.substring(0, url.length-1);
 }
 
-function incrementPage(){
-    var current_page = $("#current-page input");
-    current_page[0].value++;
-    submitForms(true);
-}
-
-function decrementPage(){
-    var current_page = $("#current-page input");
-    current_page[0].value--;
-    submitForms(true);
-}
-
-function clickHandle(e, retain_page){
+function searchHandle(e, id_array){
     e.preventDefault();
-    submitForms(retain_page);
-}
-
-function searchHandle(e, retain_page){
     if(e.keyCode === 13){
-        e.preventDefault();
-        submitForms(retain_page);
+        submitForms(id_array);
     }
-}
-
-function changeHandler(input, max_pages){
-    if (input.value < 1) {input.value=1;}
-    if (input.value > max_pages) {input.value=max_pages;}
 }
 
 $(document).ready(function() {
