@@ -37,7 +37,7 @@ class TestVideo(BaseTestXmodule):
         fragment = self.runtime.render(self.item_module, None, 'student_view')
         expected_context = {
             'data_dir': getattr(self, 'data_dir', None),
-            'caption_asset_path': '/c4x/MITx/999/asset/subs_',
+            'caption_asset_path': '/static/subs/',
             'show_captions': self.item_module.show_captions,
             'display_name': self.item_module.display_name_with_default,
             'end': self.item_module.end_time,
@@ -79,7 +79,7 @@ class TestVideoNonYouTube(TestVideo):
         fragment = self.runtime.render(self.item_module, None, 'student_view')
         expected_context = {
             'data_dir': getattr(self, 'data_dir', None),
-            'caption_asset_path': '/c4x/MITx/999/asset/subs_',
+            'caption_asset_path': '/static/subs/',
             'show_captions': self.item_module.show_captions,
             'display_name': self.item_module.display_name_with_default,
             'end': self.item_module.end_time,
