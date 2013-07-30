@@ -1,6 +1,9 @@
 #pylint: disable=C0111
 
 from lettuce import world, step
+from terrain.steps import reload_the_page
+from xmodule.modulestore import Location
+from contentstore.utils import get_modulestore
 
 ############### ACTIONS ####################
 
@@ -31,3 +34,47 @@ def hide_or_show_captions(step, shown):
         button = world.css_find(button_css)
         button.mouse_out()
         world.css_click(button_css)
+
+
+@step('I have created a video with only XML data')
+def xml_only_video(step):
+    # Create a new video *without* metadata. This requires a certain
+    # amount of rummaging to make sure all the correct data is present
+    step.given('I have clicked the new unit button')
+
+    # Wait for the new unit to be created and to load the page
+    world.wait(1)
+
+    location = world.scenario_dict['COURSE'].location
+    store = get_modulestore(location)
+
+    parent_location = Location(
+        store.collection.find_one({'_id.category': 'vertical'})['_id']
+    )
+
+    youtube_id = 'ABCDEFG'
+    world.scenario_dict['YOUTUBE_ID'] = youtube_id
+
+    # Create a new Video component, but ensure that it doesn't have
+    # metadata. This allows us to test that we are correctly parsing
+    # out XML
+    video = world.ItemFactory.create(
+        parent_location=parent_location,
+        category='video',
+        data='<video youtube="1.00:%s"></video>' % youtube_id
+    )
+
+    # Add the new video into the existing course
+    store.collection.update(
+        {'_id.category': 'vertical'},
+        {'definition': {'children': [video.location.url()]}}
+    )
+
+    # Refresh to see the new video
+    reload_the_page(step)
+
+
+@step('The correct Youtube video is shown')
+def the_youtube_video_is_shown(_step):
+    ele = world.css_find('.video').first
+    assert ele['data-youtube-id-1-0'] == world.scenario_dict['YOUTUBE_ID']

@@ -22,3 +22,7 @@ Feature: Video Component
     Given I have created a Video component
     And I have toggled captions
     Then when I view the video it does show the captions
+
+  Scenario: Video data is shown correctly
+    Given I have created a video with only XML data
+    Then the correct Youtube video is shown
