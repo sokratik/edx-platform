@@ -66,3 +66,14 @@
     color: #333;
     background: rgba(255, 255, 255, 0.6);
 }
+
+
+#search-bar:hover{
+    cursor: pointer;
+}
+
+#searchbox{
+    -moz-border-radius: 3px;
+    -webkit-border-radius: 3px;
+    border-radius: 3px;
+}

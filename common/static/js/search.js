@@ -105,10 +105,15 @@ function constructSearchBox(value){
 
 function replaceWithSearch(){
     var searchWrapper = constructSearchBox("");
+    var width = $("div.search-icon").width()
+    var height = $("div.search-icon").height()
     $(this).addClass("animated fadeOut");
     $(this).on('webkitAnimationEnd oanimationend oAnimationEnd msAnimationEnd animationend',
         function (e){
             $(this).parent().replaceWith(searchWrapper);
+            $("#searchbox").css("width", width)
+            $("#searchbox").css("height", height)
+            $('#search-bar').remove()
             if (document.URL.indexOf("search?s=") == -1){
                 document.getElementById("searchbox").focus();
         }
