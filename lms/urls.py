@@ -21,8 +21,6 @@ urlpatterns = ('',  # nopep8
     url(r'^login$', 'student.views.signin_user', name="signin_user"),
     url(r'^register$', 'student.views.register_user', name="register_user"),
 
-    url(r'^profile$', 'student.views.profile', name="profile"),
-
     url(r'^admin_dashboard$', 'dashboard.views.dashboard'),
 
     url(r'^change_email$', 'student.views.change_email_request', name="change_email"),
@@ -259,9 +257,6 @@ if settings.COURSEWARE_ENABLED:
         url(r'^courses/(?P<course_id>[^/]+/[^/]+/[^/]+)/progress/(?P<student_id>[^/]*)/$',
             'courseware.views.progress', name="student_progress"),
 
-        url(r'^courses/(?P<course_id>[^/]+/[^/]+/[^/]+)/badges$',
-            'courseware.views.badges', name="badges"),
-
         # For the instructor
         url(r'^courses/(?P<course_id>[^/]+/[^/]+/[^/]+)/instructor$',
             'instructor.views.instructor_dashboard', name="instructor_dashboard"),
@@ -347,6 +342,14 @@ if settings.COURSEWARE_ENABLED:
             url(r'^courses/(?P<course_id>[^/]+/[^/]+/[^/]+)/submission_history/(?P<student_username>[^/]*)/(?P<location>.*?)$',
                 'courseware.views.submission_history',
                 name='submission_history'),
+        )
+
+    #Prototype page which displays to a student all badges for a particular course.
+    if settings.MITX_FEATURES.get('ENABLE_STUDENT_BADGE_DISPLAY_COURSEWARE', False):
+        print "INDEED"
+        urlpatterns += (
+            url(r'^courses/(?P<course_id>[^/]+/[^/]+/[^/]+)/badges$',
+                'courseware.views.badges', name="badges"),
         )
 
 
@@ -437,6 +440,12 @@ if settings.MITX_FEATURES.get('ENABLE_HINTER_INSTRUCTOR_VIEW'):
     urlpatterns += (
         url(r'^courses/(?P<course_id>[^/]+/[^/]+/[^/]+)/hint_manager$',
             'instructor.hint_manager.hint_manager', name="hint_manager"),
+    )
+
+#Prototype page which displays to a student all badges they have earned.
+if settings.MITX_FEATURES.get('ENABLE_STUDENT_BADGE_DISPLAY_DASHBOARD', False):
+    urlpatterns += (
+        url(r'^badges_profile$', 'student.views.badges_profile', name="badges_profile"),
     )
 
 urlpatterns = patterns(*urlpatterns)

@@ -682,9 +682,12 @@ def progress(request, course_id, student_id=None):
                'grade_summary': grade_summary,
                'staff_access': staff_access,
                'student': student,
-               'badge_data': make_badge_data(request, course),
                }
-    context.update()
+    if settings.MITX_FEATURES.get('ENABLE_STUDENT_BADGE_DISPLAY_COURSEWARE', False):
+        context.update({
+            'badge_data': make_badge_data(request, course),
+            'badges_enabled': True,
+        })
 
     return render_to_response('courseware/progress.html', context)
 
@@ -694,7 +697,6 @@ def badges(request, course_id):
     """
     Displays a student's earned badges for a specific course, or for the entire platform.
     """
-
     course = get_course_with_access(request.user, course_id, 'load', depth=None)
 
     context = {

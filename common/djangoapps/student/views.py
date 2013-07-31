@@ -309,9 +309,9 @@ def dashboard(request):
 
 
 @login_required
-def profile(request):
+def badges_profile(request):
 
-    #TODO: Eliminate unnecessary items.
+    #TODO: Eliminate unnecessary items copied from dashboard.
 
     user = request.user
     enrollments = CourseEnrollment.objects.filter(user=user)
@@ -372,10 +372,13 @@ def profile(request):
 
     print context['badge_data']
 
-    return render_to_response('profile.html', context)
+    return render_to_response('badges_profile.html', context)
 
 
 def make_badge_data(request, course=None):
+    # TODO: This is intended to be the same helper function as is used in courseware/views
+    # This function is currently a couple of versions behind that one. Eventually they'll both be split out
+    # of their respective views.py and put into a separate file
     """
     Returns a dictionary:
         earned_badges -- a list of dictionaries; each dictionary has information about a badge
@@ -387,7 +390,7 @@ def make_badge_data(request, course=None):
     import os
     import urllib2
 
-    #Important constants whose values might need updating every now and then
+    #Important constant whose value might need updating every now and then
     badge_service = "http://0.0.0.0:8002"
 
     recipient_id = request.user.email
