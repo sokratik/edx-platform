@@ -6,8 +6,8 @@ import urllib
 import base64
 import hashlib
 import sys
-from cStringIO import StringIO as cIO
-from StringIO import StringIO as IO
+import cStringIO
+import StringIO
 from multiprocessing import Pool
 import logging
 
@@ -334,10 +334,10 @@ class MongoIndexer:
     def pdf_to_text(self, mongo_element):
         onlyAscii = lambda s: "".join(c for c in s if ord(c) < 128)
         resource = PDFResourceManager()
-        return_string = cIO()
+        return_string = cStringIO.StringIO()
         params = LAParams()
         converter = TextConverter(resource, return_string, codec='utf-8', laparams=params)
-        fake_file = IO(mongo_element["data"].__str__())
+        fake_file = StringIO.StringIO(mongo_element["data"].__str__())
         try:
             process_pdf(resource, converter, fake_file)
         except PDFSyntaxError:
@@ -408,8 +408,8 @@ class MongoIndexer:
             raise
 
     def thumbnail_from_html(self, html):
-        pseudo_dest = cIO()
-        pisa.CreatePDF(IO(html), pseudo_dest)
+        pseudo_dest = cStringIO.StringIO()
+        pisa.CreatePDF(StringIO.StringIO(html), pseudo_dest)
         return self.thumbnail_from_pdf(pseudo_dest.getvalue())
 
     def vertical_url_from_mongo_element(self, mongo_element):
