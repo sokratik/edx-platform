@@ -26,26 +26,26 @@ MONGO_COURSE_CACHE = {}
 
 class ElasticDatabase:
     """
-    This is a wrapper class for ElasticSearch, implemented through ElasticSearch's REST api and requests.
+    This is a wrapper for Elastic Search that sits on top of the existent REST api.
 
-    In a very broad sense there are two layers of nesting in elasticsearch storage. The top level is
-    an index. In this implementation indicies correspond to types of content (transcript, problem, etc...).
-    The second level is a type. In this implementation a type is a course_id. Currently because elasticsearch
-    doesn't like having slashes in type names, types are SHA1 hashes of the course id instead of the course
-    id itself. 
+    In a broad sense there are two layers in Elastic Search. The top level is
+    an index. In this implementation indicies represent types of content (transcripts, problems, etc...).
+    The second level, strictly below indicies, is a type.
+
+    In this implementation types are hashed course ids (SHA1). 
 
     In addition to those two levels of nesting, each individual piece of data has an id associated with it.
     Currently the id of each object is a SHA1 hash of its entire id field. 
 
-    Each index has a setup associated with it. These settings are quite minimal, they just specify how many
-    nodes/shards we would like to have an index distributed across. 
+    Each index has "settings" associated with it. These are quite minimal, just specifying the number of
+    nodes and shards the index is distributed across.
 
     Each type has a mapping associated with it. A mapping is essentially a database schema with some additional
-    information surrounding search functionality. For instance, which tokenizers and analyzers to use.
+    information surrounding search functionality, such as tokenizers and analyzers.
 
     Right now these settings are entirely specified through JSON in the settings.json file located within this
-    directory. Most of the basic methods in this class serve to properly instantiate types and indices,
-    in addition to running some basic queries and indexing content.  
+    directory. Most of the methods in this class serve to instantiate types and indices within the Elastic Search
+    instance. Additionly there are methods for running basic queries and content indexing.  
     """
 
     def __init__(self):
@@ -53,12 +53,13 @@ class ElasticDatabase:
         Instantiates the ElasticDatabase file.
 
         This includes a url, which should point to the location of the elasticsearch server.
-        The only other input here is the settings file, which should also be specified
-        within the settings file.
+        The only other input here is the Elastic Search settings file, which is a JSON file
+        that should be specified in the application settings file.
         """
 
-        self.url = "http://localhost:9200"  # settings.ES_DATABASE
-        self.index_settings = json.loads(open(settings., 'rb').read())
+        self.url = settings.ES_DATABASE
+        with open(settings.ES_SETTINGS_FILE) as source:
+            self.index_settings = json.load(source)
 
     def setup_type(self, index, type_, json_mapping):
         """
@@ -71,14 +72,19 @@ class ElasticDatabase:
         """
 
         full_url = "/".join([self.url, index, type_]) + "/"
-        dictionary = json.loads(open(json_mapping).read())
+        with open(json_mapping) as source:
+            dictionary = json.loads(source)
+        dictionary = json.loads(open(json_mapping))
         return requests.post(full_url, data=json.dumps(dictionary))
 
     def has_index(self, index):
         """
-        Checks to see if a given index exists in the database returns existance boolean,
+        Checks to see if the Elastic Search instance contains the given index,
 
-        If this returns something other than a 200 or a 404 something is wrong and so we error
+        There are some potential problems here involved with various Elastic Search configurations
+        that will result in something other than the standard 200 (exists) or 404 (doesn't exist).
+
+        If they are raised we should know about it, and so we explicitly fail.
         """
 
         full_url = "/".join([self.url, index])
@@ -106,7 +112,10 @@ class ElasticDatabase:
             log.debug("Got an unexpected reponse code: " + str(status) + " at: " + full_url)
             raise
 
-    def index_directory_files(self, directory, index, type_, silent=False, **kwargs):
+    def index_directory_files(
+        self, directory, index, type_, silent=False, file_ending=".srt.sjson",
+        callback=self.index_transcript, conserve_kwargs=False, **kwargs
+        ):
         """
         Starts a pygrep instance and indexes all files in the given directory.
 
@@ -117,9 +126,6 @@ class ElasticDatabase:
         """
 
         # Needs to be lazily evaluatedy
-        file_ending = kwargs.get("file_ending", ".srt.sjson")
-        callback = kwargs.get("callback", self.index_transcript)
-        conserve_kwargs = kwargs.get("conserve_kwargs", False)
         directoryCrawler = PyGrep(directory)
         all_files = directoryCrawler.grab_all_files_with_ending(file_ending)
         responses = []
@@ -131,26 +137,30 @@ class ElasticDatabase:
                     responses.append(callback(index, type_, file_, silent))
         return responses
 
+    def searchable_text_from_transcript_file(transcript_file):
+        file_uuid = transcript_file.rsplit("/")[-1][:-len(".srt.sjson")]
+        transcript = open(transcript_file, 'rb')
+        try:
+            searchable_text = " ".join(filter(None, json.load(transcript)["text"])).replace("\n", " ")
+        except ValueError:
+            if silent:
+                searchable_text = transcript.read()
+            else:
+                raise
+        return searchable_text
+
     def index_transcript(self, index, type_, transcript_file, silent=False, id_=None):
         """
         Indexes the given transcript file at the given index, type, and id
         """
 
-        file_uuid = transcript_file.rsplit("/")[-1][:-10]
-        transcript = open(transcript_file, 'rb').read()
-        try:
-            searchable_text = " ".join(filter(None, json.loads(transcript)["text"])).replace("\n", " ")
-        except ValueError:
-            if silent:
-                searchable_text = "INVALID JSON"
-            else:
-                raise
+        file_uuid = transcript_file.rsplit("/")[-1][:-len(".srt.sjson")]
+        searchable_text = searchable_text_from_transcript_file(transcript_file)
         data = {"searchable_text": searchable_text, "uuid": file_uuid}
         if not id_:
             return self.index_data(index, type_, data)._content
         else:
             return self.index_data(index, type_, data, id_=id_)
-        return self.index_data(index, type_, id_, data)._content
 
     def setup_index(self, index):
         """
@@ -265,35 +275,38 @@ class MongoIndexer:
         self.content_db = self.client[content_database]
         self.module_db = self.client[module_database]
         try:
-            self.content_db.collection_names().index(file_collection)
-        except ValueError:
+            self.file_collection = self.content_db[file_collection]
+        except:
             log.debug("No collection named: " + file_collection)
-            raise
         try:
-            self.content_db.collection_names().index(chunk_collection)
-        except ValueError:
+            self.chunk_collection = self.content_db[chunk_collection]
+        except:
             log.debug("No collection named: " + chunk_collection)
-            raise
         try:
-            self.module_db.collection_names().index(module_collection)
-        except ValueError:
+            self.module_collection = self.module_db[module_collection]
+        except:
             log.debug("No collection named: " + module_collection)
-            raise
-        self.file_collection = self.content_db[file_collection]
-        self.chunk_collection = self.content_db[chunk_collection]
-        self.module_collection = self.module_db[module_collection]
         self.es_instance = es_instance
 
     def find_files_with_type(self, file_ending):
-        """Returns a cursor for content files matching given type"""
+        """
+        Returns a cursor for content files matching given type
+        """
+
         return self.file_collection.find({"filename": re.compile(".*?"+re.escape(file_ending))}, timeout=False)
 
     def find_chunks_with_type(self, file_ending):
-        """Returns a chunk cursor for content files matching given type"""
+        """
+        Returns a chunk cursor for content files matching given type
+        """
+
         return self.chunk_collection.find({"files_id.name": re.compile(".*?"+re.escape(file_ending))}, timeout=False)
 
     def find_modules_by_category(self, category):
-        """Returns a cursor for all xmodules matching given category"""
+        """
+        Returns a cursor for all xmodules matching given category
+        """
+
         return self.module_collection.find({"_id.category": category}, timeout=False)
 
     def find_categories_with_regex(self, category, regex):
@@ -347,7 +360,10 @@ class MongoIndexer:
         return text_value
 
     def searchable_text_from_problem_data(self, mongo_element):
-        """The data field from the problem is in weird xml, which is good for functionality, but bad for search"""
+        """
+        The data field from the problem is in weird xml, which is good for functionality, but bad for search
+        """
+
         data = mongo_element["definition"]["data"]
         try:
             paragraphs = " ".join([text for text in re.findall("<p>(.*?)</p>", data) if text is not "Explanation"])
@@ -359,7 +375,10 @@ class MongoIndexer:
         return remove_repetitions
 
     def uuid_from_file_name(self, file_name):
-        """Returns a youtube uuid given the filename of a transcript"""
+        """
+        Returns a youtube uuid given the filename of a transcript
+        """
+
         if "subs_" in file_name:
             file_name = file_name[5+file_name.find("subs_"):]
         elif file_name[:2] == "._":
@@ -411,7 +430,10 @@ class MongoIndexer:
         return self.thumbnail_from_pdf(pseudo_dest.getvalue())
 
     def vertical_url_from_mongo_element(self, mongo_element):
-        """Given a mongo element, returns the url after courseware"""
+        """
+        Given a mongo element, returns the url after courseware
+        """
+
         name = lambda x: x["_id"]["name"]
         element_name = name(mongo_element)
         vertical = self.module_collection.find_one({"definition.children": re.compile(".*?"+element_name+".*?")})
@@ -445,7 +467,10 @@ class MongoIndexer:
         return course_element["_id"]["name"]
 
     def basic_dict(self, mongo_module, type):
-        """Returns the part of the es schema that is the same for every object."""
+        """
+        Returns the part of the es schema that is the same for every object.
+        """
+
         id = json.dumps(mongo_module["_id"])
         org = mongo_module["_id"]["org"]
         course = mongo_module["_id"]["course"]
@@ -474,7 +499,10 @@ class MongoIndexer:
         }
 
     def get_searchable_text(self, mongo_module, type):
-        """Returns searchable text for a module. Defined for a module only"""
+        """
+        Returns searchable text for a module. Defined for a module only
+        """
+
         if type.lower() == "pdf":
             name = re.sub(r'(.*?)(/asset/)(.*?)(\.pdf)(.*?)$', r'\3'+".pdf", mongo_module["definition"]["data"])
             asset = self.find_asset_with_name(name)
@@ -583,7 +611,10 @@ class PyGrep:
         self.directory = directory
 
     def grab_all_files_with_ending(self, file_ending):
-        """Will return absolute paths to all files with given file ending in self.directory"""
+        """
+        Will return absolute paths to all files with given file ending in self.directory
+        """
+
         walk_results = os.walk(self.directory)
         file_check = lambda walk: len(walk[2]) > 0
         ending_prelim = lambda walk: file_ending in " ".join(walk[2])
@@ -603,7 +634,8 @@ class EnchantDictionary:
         self.es_instance = esDatabase
 
     def produce_dictionary(self, output_file, **kwargs):
-        """Produces a dictionary or updates it depending on kwargs
+        """
+        Produces a dictionary or updates it depending on kwargs
         If no kwargs are given then this method will write a full dictionary including all
         entries in all indices and types and output it in an enchant-friendly way to the output file.
 
@@ -612,7 +644,8 @@ class EnchantDictionary:
         an absolute path to an existing enchant-friendly dictionary file.
 
         max_results will also set the maximum number of entries to be used in generating the dictionary.
-        Set to 50k by default"""
+        Set to 50k by default
+        """
 
         index = kwargs.get("index", "_all")
         max_results = kwargs.get("max_results", 50000)
