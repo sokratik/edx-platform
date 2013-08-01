@@ -52,13 +52,13 @@ class ElasticDatabase:
         """
         Instantiates the ElasticDatabase file.
 
-        This include a url, which should point to the location of the elasticsearch server.
+        This includes a url, which should point to the location of the elasticsearch server.
         The only other input here is the settings file, which should also be specified
         within the settings file.
         """
 
         self.url = "http://localhost:9200"  # settings.ES_DATABASE
-        self.index_settings = json.loads(open(index_settings_file, 'rb').read())
+        self.index_settings = json.loads(open(settings., 'rb').read())
 
     def setup_type(self, index, type_, json_mapping):
         """
@@ -72,7 +72,6 @@ class ElasticDatabase:
 
         full_url = "/".join([self.url, index, type_]) + "/"
         dictionary = json.loads(open(json_mapping).read())
-        print dictionary
         return requests.post(full_url, data=json.dumps(dictionary))
 
     def has_index(self, index):
@@ -89,7 +88,7 @@ class ElasticDatabase:
         elif status == 404:
             return False
         else:
-            print "Got an unexpected reponse code: " + str(status)
+            log.debug("Got an unexpected reponse code: " + str(status) + " at: " + full_url)
             raise
 
     def has_type(self, index, type_):
@@ -104,7 +103,7 @@ class ElasticDatabase:
         elif status == 404:
             return False
         else:
-            print "Got an unexpected response code: " + str(status)
+            log.debug("Got an unexpected reponse code: " + str(status) + " at: " + full_url)
             raise
 
     def index_directory_files(self, directory, index, type_, silent=False, **kwargs):
@@ -127,7 +126,7 @@ class ElasticDatabase:
         for file_list in all_files:
             for file_ in file_list:
                 if conserve_kwargs:
-                    responses.append(callback(index, type_, file_, silent, kwargs))
+                    responses.append(callback(index, type_, file_, silent, **kwargs))
                 else:
                     responses.append(callback(index, type_, file_, silent))
         return responses
@@ -251,6 +250,9 @@ class ElasticDatabase:
 
 
 class MongoIndexer:
+    """
+    This class is the connection point between Mongo and ElasticSearch.
+    """
 
     def __init__(
         self, host='localhost', port=27017, content_database='xcontent', file_collection="fs.files",
@@ -265,17 +267,17 @@ class MongoIndexer:
         try:
             self.content_db.collection_names().index(file_collection)
         except ValueError:
-            print "No collection named: " + file_collection
+            log.debug("No collection named: " + file_collection)
             raise
         try:
             self.content_db.collection_names().index(chunk_collection)
         except ValueError:
-            print "No collection named: " + chunk_collection
+            log.debug("No collection named: " + chunk_collection)
             raise
         try:
             self.module_db.collection_names().index(module_collection)
         except ValueError:
-            print "No collection named: " + module_collection
+            log.debug("No collection named: " + module_collection)
             raise
         self.file_collection = self.content_db[file_collection]
         self.chunk_collection = self.content_db[chunk_collection]
@@ -308,8 +310,6 @@ class MongoIndexer:
         if isinstance(data, dict):  # For some reason there are nested versions
             data = data.get("data", "")
         if not isinstance(data, unicode):  # for example videos
-            print data
-            print type(data)
             return [""]
         uuid = self.uuid_from_video_module(video_module)
         if uuid == False:
@@ -341,7 +341,7 @@ class MongoIndexer:
         try:
             process_pdf(resource, converter, fake_file)
         except PDFSyntaxError:
-            print mongo_element["files_id"]["name"] + " cannot be read, moving on."
+            log.debug(mongo_element["files_id"]["name"] + " cannot be read, moving on.")
             return ""
         text_value = onlyAscii(return_string.getvalue()).replace("\n", " ")
         return text_value
@@ -387,11 +387,9 @@ class MongoIndexer:
         uuids = data.split(",")
         if len(uuids) == 1:  # Some videos are just left over demos without links
             return False
-        try:  # The colon is kind of a hack to make sure there will always be a second element since
-              # some entries don't have anything for the second entry
-            speed_map = {(entry+":").split(":")[0]: (entry+":").split(":")[1] for entry in uuids}
-        except IndexError:
-            print uuids
+        # The colon is kind of a hack to make sure there will always be a second element since
+        # some entries don't have anything for the second entry
+        speed_map = {(entry+":").split(":")[0]: (entry+":").split(":")[1] for entry in uuids}
         try:
             uuid = [value for key, value in speed_map.items() if "1.0" in key][0]
         except IndexError:
