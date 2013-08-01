@@ -97,6 +97,10 @@ discussion_link = get_discussion_link(course) if course else None
         open_time = "14:00"
         close_time = "22:00"
     %>
+    <%
+      help_link = settings.MKTG_URL_LINK_MAP.get('FAQ', '/help')
+    %>
+
     <p>
     ${_(
         'Thank you for your inquiry or feedback.  We typically respond to a request '
@@ -106,7 +110,7 @@ discussion_link = get_discussion_link(course) if course else None
     ).format(
         open_time=open_time,
         close_time=close_time,
-        link_start='<a href="/help" target="_blank">',
+        link_start='<a href="{}" target="_blank">'.format(help_link),
         link_end='</a>'
     )}
     </p>
