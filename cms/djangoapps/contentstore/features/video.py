@@ -48,9 +48,7 @@ def xml_only_video(step):
     location = world.scenario_dict['COURSE'].location
     store = get_modulestore(location)
 
-    parent_location = Location(
-        store.collection.find_one({'_id.category': 'vertical'})['_id']
-    )
+    parent_location = store.get_items(Location(category='vertical', revision='draft'))[0].location
 
     youtube_id = 'ABCDEFG'
     world.scenario_dict['YOUTUBE_ID'] = youtube_id
@@ -62,12 +60,6 @@ def xml_only_video(step):
         parent_location=parent_location,
         category='video',
         data='<video youtube="1.00:%s"></video>' % youtube_id
-    )
-
-    # Add the new video into the existing course
-    store.collection.update(
-        {'_id.category': 'vertical'},
-        {'definition': {'children': [video.location.url()]}}
     )
 
     # Refresh to see the new video
