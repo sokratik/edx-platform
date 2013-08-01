@@ -9,6 +9,7 @@ import sys
 from cStringIO import StringIO as cIO
 from StringIO import StringIO as IO
 from multiprocessing import Pool
+import logging
 
 from django.conf import settings
 from pymongo import MongoClient
@@ -20,22 +21,49 @@ from wand.image import Image
 from wand.exceptions import DelegateError, MissingDelegateError, CorruptImageError
 from xhtml2pdf import pisa as pisa
 
-
+log = logging.getLogger("mitx.courseware")
 MONGO_COURSE_CACHE = {}
 
 class ElasticDatabase:
+    """
+    This is a wrapper class for ElasticSearch, implemented through ElasticSearch's REST api and requests.
 
-    def __init__(self, index_settings_file=os.path.dirname(os.path.realpath(__file__)) + "/settings.json"):
+    In a very broad sense there are two layers of nesting in elasticsearch storage. The top level is
+    an index. In this implementation indicies correspond to types of content (transcript, problem, etc...).
+    The second level is a type. In this implementation a type is a course_id. Currently because elasticsearch
+    doesn't like having slashes in type names, types are SHA1 hashes of the course id instead of the course
+    id itself. 
+
+    In addition to those two levels of nesting, each individual piece of data has an id associated with it.
+    Currently the id of each object is a SHA1 hash of its entire id field. 
+
+    Each index has a setup associated with it. These settings are quite minimal, they just specify how many
+    nodes/shards we would like to have an index distributed across. 
+
+    Each type has a mapping associated with it. A mapping is essentially a database schema with some additional
+    information surrounding search functionality. For instance, which tokenizers and analyzers to use.
+
+    Right now these settings are entirely specified through JSON in the settings.json file located within this
+    directory. Most of the basic methods in this class serve to properly instantiate types and indices,
+    in addition to running some basic queries and indexing content.  
+    """
+
+    def __init__(self):
         """
-        Will initialize elastic search object with specified indices
-        specifically the url should be something of the form `http://localhost:9200`
-        importantly do not include a slash at the end of the url name."""
+        Instantiates the ElasticDatabase file.
+
+        This include a url, which should point to the location of the elasticsearch server.
+        The only other input here is the settings file, which should also be specified
+        within the settings file.
+        """
 
         self.url = "http://localhost:9200"  # settings.ES_DATABASE
         self.index_settings = json.loads(open(index_settings_file, 'rb').read())
 
     def setup_type(self, index, type_, json_mapping):
         """
+        Instantiates a type within the Elastic Search instance
+        
         json_mapping should be a dictionary starting at the properties level of a mapping.
 
         The type level will be added, so if you include it things will break. The purpose of this
@@ -48,8 +76,12 @@ class ElasticDatabase:
         return requests.post(full_url, data=json.dumps(dictionary))
 
     def has_index(self, index):
-        """Checks to see if a given index exists in the database returns existance boolean,
-        If this returns something other than a 200 or a 404 something is wrong and so we error"""
+        """
+        Checks to see if a given index exists in the database returns existance boolean,
+
+        If this returns something other than a 200 or a 404 something is wrong and so we error
+        """
+
         full_url = "/".join([self.url, index])
         status = requests.head(full_url).status_code
         if status == 200:
@@ -61,7 +93,10 @@ class ElasticDatabase:
             raise
 
     def has_type(self, index, type_):
-        """Same as has_index, but for a given type"""
+        """
+        Same as has_index method, but for a given type
+        """
+
         full_url = "/".join([self.url, index, type_])
         status = requests.head(full_url).status_code
         if status == 200:
@@ -73,11 +108,15 @@ class ElasticDatabase:
             raise
 
     def index_directory_files(self, directory, index, type_, silent=False, **kwargs):
-        """Starts a pygrep instance and indexes all files in the given directory
+        """
+        Starts a pygrep instance and indexes all files in the given directory.
+
         Available kwargs are file_ending, callback, and conserve_kwargs.
         Respectively these allow you to choose the file ending to be indexed, the
         callback used to do the indexing, and whether or not you would like to pass
-        additional kwargs to the callback function."""
+        your kwargs to the callback function
+        """
+
         # Needs to be lazily evaluatedy
         file_ending = kwargs.get("file_ending", ".srt.sjson")
         callback = kwargs.get("callback", self.index_transcript)
@@ -94,7 +133,10 @@ class ElasticDatabase:
         return responses
 
     def index_transcript(self, index, type_, transcript_file, silent=False, id_=None):
-        """opens and indexes the given transcript file as the given index, type, and id"""
+        """
+        Indexes the given transcript file at the given index, type, and id
+        """
+
         file_uuid = transcript_file.rsplit("/")[-1][:-10]
         transcript = open(transcript_file, 'rb').read()
         try:
@@ -112,12 +154,18 @@ class ElasticDatabase:
         return self.index_data(index, type_, id_, data)._content
 
     def setup_index(self, index):
-        """Creates a new elasticsearch index, returns the response it gets"""
+        """
+        Creates a new elasticsearch index, returns the response it gets
+        """
+
         full_url = "/".join([self.url, index]) + "/"
         return requests.put(full_url, data=json.dumps(self.index_settings))
 
     def add_index_settings(self, index, index_settings=None):
-        """Allows the editing of an index's settings"""
+        """
+        Adds a settings file to the given index
+        """
+
         index_settings = index_settings or self.index_settings
         full_url = "/".join([self.url, index]) + "/"
         #closing the index so it can be changed
@@ -128,7 +176,16 @@ class ElasticDatabase:
         return response
 
     def index_data(self, index, data, type_=None, id_=None):
-        """Data should be passed in as a dictionary, assumes it matches the given mapping"""
+        """
+        Actually indexes given data at the indicated type and id.
+
+        If no type or id is provided, this will assume that the type and id are
+        contained within the data object passed to the index_data function in the
+        hash and type_hash fields.
+
+        Data should be a dictionary that matches the mapping of the given type.
+        """
+
         if id_ is None:
             id_ = data["hash"]
         if type_ is None:
@@ -146,30 +203,49 @@ class ElasticDatabase:
 
         Important: Bulk indexing is newline delimited, make sure the newlines are properly used
         """
+
         url = self.url + "/_bulk"
         response = requests.post(url, data=all_data)
         return response
 
 
     def get_data(self, index, type_, id_):
+        """
+        Returns the data located at a specific index, type and id within the elasticsearch instance
+        """
+
         full_url = "/".join([self.url, index, type_, id_])
         return requests.get(full_url)
 
     def get_index_settings(self, index):
-        """Returns the current settings of a given index"""
+        """
+        Returns the current settings of a given index
+        """
+
         full_url = "/".join([self.url, index, "_settings"])
         return json.loads(requests.get(full_url)._content)
 
     def delete_index(self, index):
+        """
+        Deletes the index specified, along with all contained types and data
+        """
+
         full_url = "/".join([self.url, index])
         return requests.delete(full_url)
 
     def delete_type(self, index, type_):
+        """
+        Same as delete_index, but for types
+        """
+
         full_url = "/".join([self.url, index, type_])
         return requests.delete(full_url)
 
     def get_type_mapping(self, index, type_):
-        """Return the current mapping of the indicated type"""
+        """
+        Return the mapping of the indicated type
+        """
+
         full_url = "/".join([self.url, index, type_, "_mapping"])
         return json.loads(requests.get(full_url)._content)
 
@@ -249,7 +325,11 @@ class MongoIndexer:
             # https://discussions.apple.com/thread/3145071?start=0&tstart=0
             return [""]
         else:
-            return " ".join(filter(None, json.loads(chunk["data"].decode('utf-8', "ignore"))["text"]))
+            try:
+                return " ".join(filter(None, json.loads(chunk["data"].decode('utf-8', "ignore"))["text"]))
+            except ValueError:
+                log.error("Transcript for: " + uuid + " is invalid")
+                return chunk["data"].decode('utf-8', 'ignore')
 
     def pdf_to_text(self, mongo_element):
         onlyAscii = lambda s: "".join(c for c in s if ord(c) < 128)
@@ -448,9 +528,9 @@ class MongoIndexer:
             bulk_string += json.dumps(data)
             bulk_string += "\n"
             if i % bulk_chunk == 0:
-                print self.es_instance.bulk_index(bulk_string)._content
+                print self.es_instance.bulk_index(bulk_string)
                 bulk_string = ""
-        print self.es_instance.bulk_index(bulk_string)._content
+        print self.es_instance.bulk_index(bulk_string)
 
     def index_all_transcripts(self, index, bulk_chunk=100):
         cursor = self.find_modules_by_category("video")
@@ -568,7 +648,6 @@ if sys.argv[1] == "regenerate":
 
     edb = ElasticDatabase()
 
-    mongo2.index_all_transcripts("transcript-index")
     if "pdf" in sys.argv[2:]:
         print edb.delete_index("pdf-index")
         mongo.index_all_pdfs("pdf-index")

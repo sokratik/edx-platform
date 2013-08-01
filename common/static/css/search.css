@@ -61,17 +61,21 @@
     text-decoration: none;
 }
 
-.text-wrapper:hover{
-    cursor: pointer;
-    color: #333;
-    background: rgba(255, 255, 255, 0.6);
-}
-
-
-#search-bar:hover{
+.search-bar:hover{
     cursor: pointer;
 }
 
+a.search-bar{
+    -moz-animation-duration: 0.75s;
+    -webkit-animation-duration: 0.75s;
+}
+
+#search-wrapper{
+    -webkit-animation-duration: 0.5s;
+    -moz-animation-duration: 0.5s;
+    -webkit-animation-delay: 0s;
+    -moz-animation-delay: 0s;
+}
 #searchbox{
     -moz-border-radius: 3px;
     -webkit-border-radius: 3px;

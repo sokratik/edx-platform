@@ -18,9 +18,6 @@ def url_class(is_active):
   return ""
 %>
 <%! from courseware.tabs import get_course_tabs %>
-          <div class="search-icon">
-              <a class="testins">${_("Search this Course")}</a>
-          </div>
 <nav class="${active_page} course-material">
   <div class="inner-wrapper">
     <ol class="course-tabs">
@@ -43,6 +40,11 @@ def url_class(is_active):
           <li style="float:right"><a href="#" id="staffstatus">${_("Staff view")}</a></li>
           % endif
         % endif
+        <li style="float:right">
+            <div class="search-icon">
+              <a class="search-bar">${_("Search this Course")}</a>
+            </div>
+        </li>
     </ol>
   </div>
 </nav>
