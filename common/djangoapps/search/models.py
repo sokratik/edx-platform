@@ -6,7 +6,7 @@ from collections import Counter
 import nltk
 import nltk.corpus as word_filter
 
-import sorting
+import search.sorting
 
 
 class SearchResults:
@@ -14,8 +14,7 @@ class SearchResults:
     def __init__(self, response, **kwargs):
         """kwargs should be the GET parameters from the original search request
         filters needs to be a dictionary that maps fields to allowed values"""
-        test = response._content
-        raw_results = json.loads(response._content).get("hits", {"hits": ""})["hits"]
+        raw_results = json.loads(response.content).get("hits", {"hits": ""})["hits"]
         scores = [entry["_score"] for entry in raw_results]
         self.sort = kwargs.get("sort", None)
         raw_data = [entry["_source"] for entry in raw_results]
@@ -26,7 +25,7 @@ class SearchResults:
         self.filters = kwargs.get("filters", {"": ""})
 
     def sort_results(self):
-        self.entries = sorting.sort(self.entries, self.sort)
+        self.entries = search.sorting.sort(self.entries, self.sort)
 
     def get_counter(self, field):
         master_list = [entry.data[field].lower() for entry in self.entries]
@@ -37,7 +36,7 @@ class SearchResults:
             value = ""
         punc = re.compile('[%s]' % re.escape(string.punctuation))
         strip_punc = lambda s: punc.sub("", s).lower()
-        to_filter = lambda value, entry, field: strip_punc(value) in strip_punc(entry.data.get(field,"")) 
+        to_filter = lambda value, entry, field: strip_punc(value) in strip_punc(entry.data.get(field, ""))
         return set(entry for entry in self.entries if to_filter(value, entry, field))
 
     def filter_and_sort(self):
@@ -82,7 +81,7 @@ def snippet_generator(transcript, query, soft_max=50, word_margin=25, bold=True)
     # If this is a phonetic match, there might not be a direct text match
     if tripped is False:
         for sentence in sentences:
-            if (len(response.split())+len(sentence.split())) < soft_max:
+            if (len(response.split()) + len(sentence.split())) < soft_max:
                 response += " " + sentence
             else:
                 response += " " + " ".join(sentence.split()[:word_margin])
@@ -94,7 +93,7 @@ def snippet_generator(transcript, query, soft_max=50, word_margin=25, bold=True)
 
 def _match(words):
     contained = lambda words: (words[0] in words[1]) or (words[1] in words[0])
-    near_size = lambda words: abs(len(words[0]) - len(words[1])) < (len(words[0])+len(words[1]))/6
+    near_size = lambda words: abs(len(words[0]) - len(words[1])) < (len(words[0]) + len(words[1])) / 6
     return contained(words) and near_size(words)
 
 
@@ -103,7 +102,7 @@ def _query_reduction(query, stopwords):
 
 
 def _match_highlighter(query, response, tag="b", css_class="highlight", highlight_stopwords=True):
-    wrapping = ("<"+tag+" class="+css_class+">", "</"+tag+">")
+    wrapping = ("<" + tag + " class=" + css_class + ">", "</" + tag + ">")
     punctuation_map = dict((ord(char), None) for char in string.punctuation)
     depunctuation = lambda word: word.translate(punctuation_map)
     wrap = lambda text: wrapping[0] + text + wrapping[1]

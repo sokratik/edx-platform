@@ -1,6 +1,6 @@
 from django.test import TestCase
 import requests
-from ..es_requests import ElasticDatabase, PyGrep
+from search.es_requests import ElasticDatabase, PyGrep
 import json
 import time
 import os
@@ -8,7 +8,8 @@ import os
 
 class EsTest(TestCase):
 
-    def setUp(self, es_instance="http://localhost:9200"):
+    def setUp(self):
+        es_instance="http://localhost:9200"
         # Making sure that there is actually a running es_instance before testing
         database_request = requests.get(es_instance)
         self.assertEqual(database_request.status_code, 200)
@@ -42,14 +43,14 @@ class EsTest(TestCase):
     def test_directory_search(self):
         relative_paths = ["/testdir/malformed.srt.sjson", "/testdir/transcript.srt.sjson",
                           "/testdir/nested/goal.srt.sjson"]
-        absolute_paths = set([self.current_path+item for item in relative_paths])
+        absolute_paths = set([self.current_path + item for item in relative_paths])
         paths = self.crawler.grab_all_files_with_ending(".srt.sjson")
         flat_paths = set([item for sublist in paths for item in sublist])
         self.assertTrue(flat_paths == absolute_paths)
 
     def test_alternate_directory_search(self):
         relative_paths = ["/testdir/extension.foo", "/testdir/nested/extension2.foo"]
-        absolute_paths = set([self.current_path+item for item in relative_paths])
+        absolute_paths = set([self.current_path + item for item in relative_paths])
         paths = self.crawler.grab_all_files_with_ending(".foo")
         flat_paths = set([item for sublist in paths for item in sublist])
         self.assertTrue(flat_paths == absolute_paths)
@@ -87,10 +88,10 @@ class EsTest(TestCase):
     def test_data_read(self):
         relative_paths = ["/testdir/malformed.srt.sjson", "/testdir/transcript.srt.sjson"]
         bad_response = self.elastic_search.index_transcript("test-index", "test-type",
-                                                            self.current_path+relative_paths[0],
+                                                            self.current_path + relative_paths[0],
                                                             silent=True, id_="1")
         good_response = self.elastic_search.index_transcript("test-index", "test-type",
-                                                             self.current_path+relative_paths[1],
+                                                             self.current_path + relative_paths[1],
                                                              silent=False, id_="2")
         self.assertEqual(bad_response.status_code, 201)
         self.assertEqual(good_response.status_code, 201)
@@ -98,8 +99,8 @@ class EsTest(TestCase):
         good_object = self.elastic_search.get_data("test-index", "test-type", "2")
         self.assertEqual(bad_object.status_code, 200)
         self.assertEqual(good_object.status_code, 200)
-        self.assertEqual(json.loads(bad_object._content)["_source"]["searchable_text"], "INVALID JSON")
-        self.assertEqual(json.loads(good_object._content)["_source"]["searchable_text"], "Success!")
+        self.assertEqual(json.loads(bad_object.content)["_source"]["searchable_text"], "INVALID JSON")
+        self.assertEqual(json.loads(good_object.content)["_source"]["searchable_text"], "Success!")
 
     def tearDown(self):
         self.elastic_search.delete_type("test-index", "test-type")
