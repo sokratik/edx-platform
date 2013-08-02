@@ -335,7 +335,7 @@ class OpenEndedChild(object):
             log.exception("Could not create image and check it.")
 
         if image_ok:
-            image_key = image_data.name + datetime.now(UTC).strftime(
+            image_key = image_data.name + datetime.now(UTC()).strftime(
                 xqueue_interface.dateformat
             )
 
