@@ -15,7 +15,7 @@ HTTP_PREFIX = "http://localhost:%s" % settings.LETTUCE_SERVER_PORT
 @step(u'I go to the files and uploads page')
 def go_to_uploads(_step):
     menu_css = 'li.nav-course-courseware'
-    uploads_css = 'li.nav-course-courseware-uploads'
+    uploads_css = 'li.nav-course-courseware-uploads a'
     world.css_click(menu_css)
     world.css_click(uploads_css)
 
@@ -24,12 +24,11 @@ def go_to_uploads(_step):
 def upload_file(_step, file_name):
     upload_css = 'a.upload-button'
     world.css_click(upload_css)
-
-    file_css = 'input.file-input'
-    upload = world.css_find(file_css)
     #uploading the file itself
     path = os.path.join(TEST_ROOT, 'uploads/', file_name)
-    upload._element.send_keys(os.path.abspath(path))
+    if world.is_firefox():
+        world.browser.execute_script("$('input.file-input').css('display', 'block')")
+    world.browser.attach_file('file', os.path.abspath(path))
 
     close_css = 'a.close-button'
     world.css_click(close_css)
