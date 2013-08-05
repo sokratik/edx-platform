@@ -1,19 +1,28 @@
+"""
+Tests for the ElasticDatabase class in es_requests
+"""
+
 from django.test import TestCase
 import requests
-from search.es_requests import ElasticDatabase, PyGrep
+from search.es_requests import ElasticDatabase, PyGrep, EnchantDictionary
 import json
 import time
 import os
 
 
 class EsTest(TestCase):
+    """
+    Test suite for ElasticDatabase class
+    """
 
     def setUp(self):
-        es_instance="http://localhost:9200"
+        es_instance = "http://localhost:9200"
         # Making sure that there is actually a running es_instance before testing
         database_request = requests.get(es_instance)
         self.assertEqual(database_request.status_code, 200)
-        self.elastic_search = ElasticDatabase(es_instance, "common/djangoapps/search/tests/test_settings.json")
+        self.elastic_search = ElasticDatabase("common/djangoapps/search/tests/test_settings.json")
+        index_request = self.elastic_search.setup_index("test-index");
+        self.assertEqual(index_request.status_code, 200)
         type_request = self.elastic_search.setup_type("test-index", "test-type",
                                                       "common/djangoapps/search/tests/test_mapping.json")
         time.sleep(0.1)  # Without sleep, tests will run without setUp finishing.
@@ -64,12 +73,22 @@ class EsTest(TestCase):
         self.assertTrue(success)
 
     def test_data_indexing(self):
-        responses = self.elastic_search.index_directory_files(self.current_path, "test-index", "test-type",
-                                                              silent=True, file_ending=".srt.sjson",
-                                                              callback=self.elastic_search.index_transcript)
-        successes = [json.loads(response)["ok"] for response in responses]
-        correct_indices = [json.loads(response)["_index"] == "test-index" for response in responses]
-        correct_types = [json.loads(response)["_type"] == "test-type" for response in responses]
+        full_response = self.elastic_search.index_directory_files(
+            self.current_path, "test-index", "test-type",
+            silent=True, file_ending=".srt.sjson",
+            callback=self.elastic_search.index_transcript
+        )
+
+        repeated_response = self.elastic_search.index_directory_files(
+            self.current_path, "test-index", "test-type",
+            silent=True, file_ending=".srt.sjson",
+            conserve_kwargs=True
+        )
+        second_versions = [json.loads(response)["_version"] for response in repeated_response]
+        self.assertTrue(all(version == 2 for version in second_versions))
+        successes = [json.loads(response)["ok"] for response in full_response]
+        correct_indices = [json.loads(response)["_index"] == "test-index" for response in full_response]
+        correct_types = [json.loads(response)["_type"] == "test-type" for response in full_response]
         self.assertTrue(all(successes))
         self.assertTrue(all(correct_indices))
         self.assertTrue(all(correct_types))
@@ -99,8 +118,23 @@ class EsTest(TestCase):
         good_object = self.elastic_search.get_data("test-index", "test-type", "2")
         self.assertEqual(bad_object.status_code, 200)
         self.assertEqual(good_object.status_code, 200)
-        self.assertEqual(json.loads(bad_object.content)["_source"]["searchable_text"], "INVALID JSON")
+        self.assertEqual(json.loads(bad_object.content)["_source"]["searchable_text"], "")
+        self.assertEqual(json.loads(bad_object.content)["_source"]["uuid"], "malformed")
         self.assertEqual(json.loads(good_object.content)["_source"]["searchable_text"], "Success!")
+
+    def test_dictionary(self):
+        """
+        Tests the formation of a pyenchant dictionary
+        """
+        action = {"index": {"_index": "dictionary-index", "_value": "test-value"}}
+        test_data = {"searchable_text": "This is a body of searchable text", "test-float": "1.7"}
+        self.es_instance.bulk_index(str(action) + "\n" + str(test_data))
+        dictionary = EnchantDictionary(self.es_instance)
+        dictionary.produce_dictionary("test_dictionary.txt", "dictionary-index")
+        with open("test_dictionary.txt", "rb") as source:
+            self.assertTrue(len(source) > 1)
+            for line in source:
+                self.assertTrue(source in test_data["searchable_text"])
 
     def tearDown(self):
         self.elastic_search.delete_type("test-index", "test-type")

@@ -1,3 +1,7 @@
+"""
+General methods and classes for interaction with the Mongo Database and Elasticsearch instance
+"""
+
 import requests
 import json
 import os
@@ -48,7 +52,7 @@ class ElasticDatabase:
     instance. Additionly there are methods for running basic queries and content indexing.
     """
 
-    def __init__(self):
+    def __init__(self, settings_file=None):
         """
         Instantiates the ElasticDatabase file.
 
@@ -58,8 +62,13 @@ class ElasticDatabase:
         """
 
         self.url = settings.ES_DATABASE
-        with open(settings.ES_SETTINGS_FILE) as source:
-            self.index_settings = json.load(source)
+        if settings_file is None:
+            current_directory = os.path.dirname(os.path.realpath(__file__))
+            with open(os.path.join(current_directory, "settings.json")) as source:
+                self.index_settings = json.load(source)
+        else:
+            with open(settings_file) as source:
+                self.index_settings = json.load(source)
 
     def setup_type(self, index, type_, json_mapping):
         """
@@ -73,8 +82,8 @@ class ElasticDatabase:
 
         full_url = "/".join([self.url, index, type_]) + "/"
         with open(json_mapping) as source:
-            dictionary = json.loads(source)
-        dictionary = json.loads(open(json_mapping))
+            dictionary = json.load(source)
+        dictionary = json.load(open(json_mapping))
         return requests.post(full_url, data=json.dumps(dictionary))
 
     def has_index(self, index):
@@ -161,11 +170,14 @@ class ElasticDatabase:
 
         file_uuid = transcript_file.rsplit("/")[-1][:-len(".srt.sjson")]
         searchable_text = self.searchable_text_from_transcript_file(transcript_file, silent)
-        data = {"searchable_text": searchable_text, "uuid": file_uuid}
+        hash = hashlib.sha1(file_uuid).hexdigest()
+        data = {"searchable_text": searchable_text, "uuid": file_uuid, "hash": hash}
+        print type(data)
+        print data
         if not id_:
-            return self.index_data(index, type_, data).content
+            return self.index_data(index, data, type_).content
         else:
-            return self.index_data(index, type_, data, id_=id_)
+            return self.index_data(index, data, type_, id_=id_)
 
     def setup_index(self, index):
         """
@@ -174,20 +186,6 @@ class ElasticDatabase:
 
         full_url = "/".join([self.url, index]) + "/"
         return requests.put(full_url, data=json.dumps(self.index_settings))
-
-    def add_index_settings(self, index, index_settings=None):
-        """
-        Adds a settings file to the given index
-        """
-
-        index_settings = index_settings or self.index_settings
-        full_url = "/".join([self.url, index]) + "/"
-        #closing the index so it can be changed
-        requests.post(full_url + "/_close")
-        response = requests.post(full_url + "/", data=json.dumps(index_settings))
-        #reopening the index so it can be read
-        requests.post(full_url + "/_open")
-        return response
 
     def index_data(self, index, data, type_=None, id_=None):
         """
@@ -454,9 +452,9 @@ class MongoIndexer:
         try:
             uuid = [value for key, value in speed_map.items() if "1.0" in key][0]
         except IndexError:
-            print data
-            print uuids
-            print speed_map
+            log.debug(data)
+            log.debug(uuids)
+            log.debug(speed_map)
         return uuid
 
     def thumbnail_from_pdf(self, pdf):
@@ -503,10 +501,10 @@ class MongoIndexer:
                 if chapter and chapter["_id"]:
                     return "/".join([name(chapter), name(sequential), str(index + 1)])
                 else:
-                    print "No Chapter for: " + sequential["metadata"]["display_name"]
+                    log.debug("No Chapter for: " + sequential["metadata"]["display_name"])
                     return None
             else:
-                print "No Sequential for: " + vertical["metadata"]["display_name"]
+                log.debug("No Sequential for: " + vertical["metadata"]["display_name"])
                 return None
         else:
             return None
@@ -544,7 +542,7 @@ class MongoIndexer:
         thumbnail = self.get_thumbnail(mongo_module, type_)
         type_hash = hashlib.sha1(course_id).hexdigest()
         return {
-            "id": id,
+            "id": id_,
             "hash": hash_,
             "display_name": display_name,
             "course_id": course_id,
@@ -592,7 +590,7 @@ class MongoIndexer:
             thumbnail = self.thumbnail_from_video_module(mongo_module)
         return thumbnail
 
-    def index_all_pdfs(self, index, bulk_chunk=100):
+    def index_all_pdfs(self, index, bulk_chunk=5):
         """
         Indexes all pdfs.
 
@@ -609,9 +607,10 @@ class MongoIndexer:
             bulk_string += json.dumps(data)
             bulk_string += "\n"
             if i % bulk_chunk == 0:
-                print self.es_instance.bulk_index(bulk_string)
+                log.debug(i)
+                self.es_instance.bulk_index(bulk_string)
                 bulk_string = ""
-        print self.es_instance.bulk_index(bulk_string)
+        self.es_instance.bulk_index(bulk_string)
 
     def index_all_problems(self, index, bulk_chunk=100):
         """
@@ -621,6 +620,7 @@ class MongoIndexer:
         bulk_string = ""
         for i in range(cursor.count()):
             item = cursor.next()
+            print i
             try:
                 data = self.basic_dict(item, "problem")
             except IOError:  # In case the connection is refused for whatever reason, try again
@@ -630,9 +630,10 @@ class MongoIndexer:
             bulk_string += json.dumps(data)
             bulk_string += "\n"
             if i % bulk_chunk == 0:
-                print self.es_instance.bulk_index(bulk_string)
+                log.debug(i)
+                self.es_instance.bulk_index(bulk_string)
                 bulk_string = ""
-        print self.es_instance.bulk_index(bulk_string)
+        self.es_instance.bulk_index(bulk_string)
 
     def index_all_transcripts(self, index, bulk_chunk=100):
         """
@@ -656,9 +657,10 @@ class MongoIndexer:
             bulk_string += json.dumps(data)
             bulk_string += "\n"
             if i % bulk_chunk == 0:
-                print self.es_instance.bulk_index(bulk_string).content
+                log.debug(i)
+                self.es_instance.bulk_index(bulk_string).content
                 bulk_string = ""
-        print self.es_instance.bulk_index(bulk_string).content
+        self.es_instance.bulk_index(bulk_string).content
 
     def index_course(self, course):
         """
@@ -666,7 +668,7 @@ class MongoIndexer:
         """
 
         cursor = self.find_modules_for_course(course)
-        for i in range(cursor.count()):
+        for _ in range(cursor.count()):
             item = cursor.next()
             category = item["_id"]["category"].lower().strip()
             data = {}
@@ -722,16 +724,21 @@ class PyGrep:
         """
 
         format_check = lambda file_name: file_ending in file_name
-        directory, subfolders, file_paths = os_walk_tuple
+        directory, _, file_paths = os_walk_tuple
         return [os.path.join(directory, file_path) for file_path in file_paths if format_check(file_path)]
 
 
 class EnchantDictionary:
+    """
+    Simple wrapper around pyenchant, integrated with ElasticSearch.
 
-    def __init__(self, esDatabase):
-        self.es_instance = esDatabase
+    Will soon be deprecated as we are moving to ElasticSearch's suggest method
+    """
 
-    def produce_dictionary(self, output_file, **kwargs):
+    def __init__(self, es_database):
+        self.es_instance = es_database
+
+    def produce_dictionary(self, output_file, index="_all", max_results=50000, **kwargs):
         """
         Produces a dictionary or updates it depending on kwargs
         If no kwargs are given then this method will write a full dictionary including all
@@ -745,8 +752,6 @@ class EnchantDictionary:
         Set to 50k by default
         """
 
-        index = kwargs.get("index", "_all")
-        max_results = kwargs.get("max_results", 50000)
         words = set()
         if kwargs.get("source_file", None):
             words = set(open(kwargs["source_file"]).readlines())
@@ -772,25 +777,25 @@ class EnchantDictionary:
 
 
 if sys.argv[1] == "regenerate":
-    mongo = MongoIndexer(content_database="edge-xcontent", module_database="edge-xmodule")
-    mongo2 = MongoIndexer()
+    MONGO = MongoIndexer(content_database="edge-xcontent", module_database="edge-xmodule")
+    MONGO2 = MongoIndexer()
 
-    edb = ElasticDatabase()
+    EDB = ElasticDatabase()
 
     if "pdf" in sys.argv[2:]:
-        print edb.delete_index("pdf-index")
-        mongo.index_all_pdfs("pdf-index")
-        mongo2.index_all_pdfs("pdf-index")
+        print EDB.delete_index("pdf-index")
+        MONGO.index_all_pdfs("pdf-index")
+        MONGO2.index_all_pdfs("pdf-index")
 
     if "transcript" in sys.argv[2:]:
-        print edb.delete_index("transcript-index")
-        mongo.index_all_transcripts("transcript-index")
-        mongo2.index_all_transcripts("transcript-index")
+        print EDB.delete_index("transcript-index")
+        MONGO.index_all_transcripts("transcript-index")
+        MONGO2.index_all_transcripts("transcript-index")
 
     if "problem" in sys.argv[2:]:
-        print edb.delete_index("problem-index")
-        mongo.index_all_problems("problem-index")
-        mongo2.index_all_problems("problem-index")
+        print EDB.delete_index("problem-index")
+        MONGO.index_all_problems("problem-index")
+        MONGO2.index_all_problems("problem-index")
 
     #print test.setup_type("transcript", "cleaning", mapping).content
     #print test.get_type_mapping("transcript-index", "2-1x")

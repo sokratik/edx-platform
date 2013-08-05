@@ -5,7 +5,7 @@ import json
 
 from django.conf import settings
 from django.http import HttpResponseBadRequest, HttpResponse
-from mitxmako.shortcuts import render_to_string, render_to_response
+from mitxmako.shortcuts import render_to_response
 from django_future.csrf import ensure_csrf_cookie
 
 from courseware.courses import get_course_with_access
@@ -54,7 +54,18 @@ def find(request, course_id):
     full_query_data = {}
     get_content = lambda request, content: content + "-index" if request.GET.get(content, False) else None
     query = request.GET.get("s", "*.*")
-    full_query_data.update({"query": {"term": {"searchable_text": query}}})
+    full_query_data.update(
+        {
+        "query":
+            {"query_string":
+                {
+                "default_field": "searchable_text",
+                "query": query,
+                "analyzer": "standard"
+                }
+            }
+        }
+    )
     index = ",".join(filter(None, [get_content(request, content) for content in CONTENT_TYPES]))
     log.debug(index)
     if len(index) == 0:
@@ -73,7 +84,7 @@ def find(request, course_id):
     full_query_data.update(
         {"suggest":
             {"searchable_text_suggestions":
-                {"text": query, "term": {"size": 2, "field": "searchable_text"}
+                {"text": query, "term": {"size": "2", "field": "searchable_text", "max_term_freq": "50"}
                 }
             }
         }
@@ -84,8 +95,8 @@ def find(request, course_id):
     log.debug(response.content)
     data = SearchResults(response, **request.GET)
     data.filter_and_sort()
-    context.update({"results": data.has_results})
-    correction = spell_check(query)
+    context.update({"results": len(data) > 0})
+    correction = spell_check(response.content)
 
     context.update({
         "data": data,
@@ -121,5 +132,8 @@ def spell_check(es_response):
     """
     Returns corrected version with attached html if there are suggested corrections.
     """
-    #TODO: Actually parse the response and add some limit on
-    return json.loads(es_response)["suggestion"]
+    suggestions = json.loads(es_response)["suggest"]["searchable_text_suggestions"]
+    hits = json.loads(es_response)["hits"].get("total", 0)
+    correction = [[entry["text"] if entry["freq"] > hits else [] for entry in term["options"]] for term in suggestions]
+    true_correction = [correction[i] or [suggestions[i]["text"]] for i,_ in enumerate(correction)]
+    return " ".join(attempt[0] for attempt in true_correction)

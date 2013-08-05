@@ -20,18 +20,31 @@ class SearchResults:
         raw_data = [entry["_source"] for entry in raw_results]
         self.query = " ".join(kwargs.get("s", "*.*"))
         results = zip(raw_data, scores)
-        self.entries = [SearchResult(entry, score, self.query, **kwargs) for entry, score in results]
-        self.has_results = len(self.entries) > 0
+        self.entries = [SearchResult(entry, score, self.query) for entry, score in results]
         self.filters = kwargs.get("filters", {"": ""})
 
     def sort_results(self):
+        """
+        Applies an in-place sort of the entries associated with the search results
+
+        Sort type is specified in object initialization
+        """
+
         self.entries = search.sorting.sort(self.entries, self.sort)
 
     def get_counter(self, field):
+        """
+        Returns a Counter (histogram) for the field indicated
+        """
+
         master_list = [entry.data[field].lower() for entry in self.entries]
         return Counter(master_list)
 
     def filter(self, field, value):
+        """
+        Returns a set of all entries where the value of the specified field matches the specified value
+        """
+
         if value is None:
             value = ""
         punc = re.compile('[%s]' % re.escape(string.punctuation))
@@ -40,6 +53,10 @@ class SearchResults:
         return set(entry for entry in self.entries if to_filter(value, entry, field))
 
     def filter_and_sort(self):
+        """
+        Applies all relevant filters and sorts to the internal entries container
+        """
+
         full_results = set()
         for field, value in self.filters.items():
             full_results |= self.filter(field, value)
@@ -47,12 +64,53 @@ class SearchResults:
         self.sort_results()
 
     def __len__(self):
+        """
+        Implementation of len method standard to Containers
+
+        It's useful to treat SearchResults as a Container in views from a usability perspective,
+        so this class implements the standard gambit of Container methods
+        """
+
         return len(self.entries)
+
+    def __delitem__(self, i):
+        """
+        Deletes SearchResult at indicated index
+        """
+
+        del self.entries[i]
+
+    def __getitem__(self, i):
+        """
+        Returns SearchResult at indicated index
+        """
+
+        return self.entries[i]
+
+    def __setitem__(self, i, value):
+        """
+        Sets the SearchResult at indicated index to the specified value
+
+        Value can be passed in either as a SearchResult, a list/tuple of values
+        order as entry, score, query, or a dictionary with values for the keys
+        entry, score, and query.
+        """
+
+        if isinstance(value, SearchResult):
+            self.entries[i] = value
+        elif isinstance(value, list):
+            new_result = SearchResult(*value)
+            self.entries[i] = new_result
+        elif isinstance(value, dict):
+            new_result = SearchResult(**value)
+            self.entries[i] = new_result
+        else:
+            raise ValueError
 
 
 class SearchResult:
 
-    def __init__(self, entry, score, query, **kwargs):
+    def __init__(self, entry, score, query):
         self.data = entry
         self.score = score
         self.thumbnail = "data:image/jpg;base64," + entry["thumbnail"]
