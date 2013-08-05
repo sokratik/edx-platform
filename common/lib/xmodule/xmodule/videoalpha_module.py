@@ -50,6 +50,8 @@ class VideoAlphaFields(object):
         scope=Scope.settings,
         default=True
     )
+    # TODO: This should be moved to Scope.content, but this will
+    # require data migration to support the old video module.
     youtube_id_1_0 = String(
         help="This is the Youtube ID reference for the normal speed video.",
         display_name="Youtube ID",
@@ -75,13 +77,13 @@ class VideoAlphaFields(object):
         default=""
     )
     start_time = Float(
-        help="Time the video starts",
+        help="Start time for the video.",
         display_name="Start Time",
         scope=Scope.settings,
         default=0.0
     )
     end_time = Float(
-        help="Time the video ends",
+        help="End time for the video.",
         display_name="End Time",
         scope=Scope.settings,
         default=0.0
@@ -210,11 +212,6 @@ class VideoAlphaDescriptor(VideoAlphaFields, TabsEditingDescriptor):
             self._model_data.update(model_data)
             del self.data
 
-    @property
-    def non_editable_metadata_fields(self):
-        non_editable_fields = super(TabsEditingDescriptor, self).non_editable_metadata_fields
-        return non_editable_fields + [VideoAlphaFields.start_time, VideoAlphaFields.end_time]
-
     @classmethod
     def from_xml(cls, xml_data, system, org=None, course=None):
         """
@@ -233,16 +230,7 @@ class VideoAlphaDescriptor(VideoAlphaFields, TabsEditingDescriptor):
 
     def export_to_xml(self, resource_fs):
         """
-        Returns an xml string representing this module, and all modules
-        underneath it.  May also write required resources out to resource_fs
-
-        Assumes that modules have single parentage (that no module appears twice
-        in the same course), and that it is thus safe to nest modules as xml
-        children as appropriate.
-
-        The returned XML should be able to be parsed back into an identical
-        XModuleDescriptor using the from_xml method with the same system, org,
-        and course
+        Returns an xml string representing this module.
         """
         xml = etree.Element('videoalpha')
         attrs = {
@@ -346,7 +334,7 @@ class VideoAlphaDescriptor(VideoAlphaFields, TabsEditingDescriptor):
     def _parse_time(str_time):
         """Converts s in '12:34:45' format to seconds. If s is
         None, returns empty string"""
-        if str_time is None or str_time == '':
+        if not str_time:
             return ''
         else:
             obj_time = time.strptime(str_time, '%H:%M:%S')
