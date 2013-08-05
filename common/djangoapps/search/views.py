@@ -97,7 +97,8 @@ def find(request, course_id):
     data.filter_and_sort()
     context.update({"results": len(data) > 0})
     correction = spell_check(response.content)
-
+    if correction == query:
+        correction = ""
     context.update({
         "data": data,
         "old_query": query,
@@ -134,6 +135,6 @@ def spell_check(es_response):
     """
     suggestions = json.loads(es_response)["suggest"]["searchable_text_suggestions"]
     hits = json.loads(es_response)["hits"].get("total", 0)
-    correction = [[entry["text"] if entry["freq"] > hits else [] for entry in term["options"]] for term in suggestions]
-    true_correction = [correction[i] or [suggestions[i]["text"]] for i,_ in enumerate(correction)]
+    correction = [[entry["text"] if entry["freq"] > 0.1*hits else [] for entry in term["options"]] for term in suggestions]
+    true_correction = [correction[i] or [suggestions[i]["text"]] for i in xrange(len(correction))]
     return " ".join(attempt[0] for attempt in true_correction)
