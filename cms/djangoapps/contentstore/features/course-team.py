@@ -55,7 +55,7 @@ def delete_other_user(_step, name):
         email="{0}{1}".format(name, EMAIL_EXTENSION))
     world.css_click(to_delete_css)
     # confirm prompt
-    world.css_click(".wrapper-prompt-warning .action-primary")
+    world.css_click(".wrapper-prompt-warning .action-primary", success_condition=lambda: world.is_css_not_present(".wrapper-prompt-warning .action-primary"))
 
 
 @step(u's?he deletes me from the course team')
