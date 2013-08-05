@@ -787,9 +787,6 @@ def proxy_legacy_analytics(request, course_id):
         return HttpResponse("Error requesting from analytics server.", status=500)
 
     if res.status_code == 200:
-        # WARNING: do not use req.json because the preloaded json doesn't
-        # preserve the order of the original record (hence OrderedDict).
-        # return HttpResponse(json.loads(res.content, object_pairs_hook=OrderedDict), content_type="application/json")
         return HttpResponse(res.content, content_type="application/json")
     elif res.status_code == 404:
         return HttpResponse(res.content, content_type="application/json", status=404)
