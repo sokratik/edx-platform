@@ -1,6 +1,6 @@
 import os
 
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "lms.envs.dev")
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "cms.envs.dev")
 
 # This application object is used by the development server
 # as well as any WSGI server configured to use this file.

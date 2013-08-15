@@ -271,7 +271,7 @@ def assignment_type_update(request, org, course, category, name):
 def create_draft(request):
     location = request.POST['id']
 
-    # check permissions for this user within this course
+    # check permissions for this user within this coursem
     if not has_access(request.user, location):
         raise PermissionDenied()
 

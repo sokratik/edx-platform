@@ -15,6 +15,7 @@ django-mako==0.1.5pre
 django-masquerade==0.1.6
 django-mptt==0.5.5
 django-openid-auth==0.4
+django-social-auth==0.7.20
 django-robots==0.9.1
 django-sekizai==0.6.1
 django-ses==0.4.1
@@ -87,5 +88,4 @@ django-jasmine==0.3.2
 django_debug_toolbar
 django-debug-toolbar-mongo
 nose-ignore-docstring
-psycopg2
 git+https://github.com/mfogel/django-settings-context-processor.git
