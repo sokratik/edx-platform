@@ -104,6 +104,7 @@ def course_from_id(course_id):
     course_loc = CourseDescriptor.id_to_location(course_id)
     return modulestore().get_instance(course_id, course_loc)
 
+
 day_pattern = re.compile(r'\s\d+,\s')
 multimonth_pattern = re.compile(r'\s?\-\s?\S+\s')
 
@@ -190,7 +191,7 @@ def _cert_info(user, course, cert_status):
          'show_disabled_download_button': status == 'generating', }
 
     if (status in ('generating', 'ready', 'notpassing', 'restricted') and
-            course.end_of_course_survey_url is not None):
+                course.end_of_course_survey_url is not None):
         d.update({
             'show_survey_button': True,
             'survey_url': process_survey_link(course.end_of_course_survey_url, user)})
@@ -265,7 +266,7 @@ def dashboard(request):
             courses.append(course_from_id(enrollment.course_id))
         except ItemNotFoundError:
             log.error("User {0} enrolled in non-existent course {1}"
-                      .format(user.username, enrollment.course_id))
+            .format(user.username, enrollment.course_id))
 
     message = ""
     if not user.is_active:
@@ -301,7 +302,7 @@ def dashboard(request):
                'show_courseware_links_for': show_courseware_links_for,
                'cert_statuses': cert_statuses,
                'exam_registrations': exam_registrations,
-               }
+    }
 
     return render_to_response('dashboard.html', context)
 
@@ -365,7 +366,7 @@ def change_enrollment(request):
             course = course_from_id(course_id)
         except ItemNotFoundError:
             log.warning("User {0} tried to enroll in non-existent course {1}"
-                        .format(user.username, course_id))
+            .format(user.username, course_id))
             return HttpResponseBadRequest(_("Course id is invalid"))
 
         if not has_access(user, course, 'enroll'):
@@ -405,7 +406,6 @@ def change_enrollment(request):
 
 @ensure_csrf_cookie
 def accounts_login(request, error=""):
-
     return render_to_response('login.html', {'error': error})
 
 
@@ -415,7 +415,8 @@ def login_user(request, error=""):
     ''' AJAX request to log in the user. '''
     if 'email' not in request.POST or 'password' not in request.POST:
         return HttpResponse(json.dumps({'success': False,
-                                        'value': _('There was an error receiving your login information. Please email us.')}))  # TODO: User error message
+                                        'value': _(
+                                            'There was an error receiving your login information. Please email us.')}))  # TODO: User error message
 
     email = request.POST['email']
     password = request.POST['password']
@@ -488,7 +489,8 @@ def login_user(request, error=""):
     AUDIT_LOG.warning(u"Login failed - Account not active for user {0}, resending activation".format(username))
 
     reactivation_email_for_user(user)
-    not_activated_msg = _("This account has not been activated. We have sent another activation message. Please check your e-mail for the activation instructions.")
+    not_activated_msg = _(
+        "This account has not been activated. We have sent another activation message. Please check your e-mail for the activation instructions.")
     return HttpResponse(json.dumps({'success': False,
                                     'value': not_activated_msg}))
 
@@ -541,13 +543,18 @@ def _do_create_account(post_vars):
     registration = Registration()
     # TODO: Rearrange so that if part of the process fails, the whole process fails.
     # Right now, we can have e.g. no registration e-mail sent out and a zombie account
+    log.info(user)
+    log.info("trying to save user")
     try:
         user.save()
-    except IntegrityError:
+    except IntegrityError, e:
+        log.error("in exception block")
         js = {'success': False}
+        log.error(e)
         # Figure out the cause of the integrity error
         if len(User.objects.filter(username=post_vars['username'])) > 0:
-            js['value'] = _("An account with the Public Username '{username}' already exists.").format(username=post_vars['username'])
+            js['value'] = _("An account with the Public Username '{username}' already exists.").format(
+                username=post_vars['username'])
             js['field'] = 'username'
             return HttpResponse(json.dumps(js))
 
@@ -624,8 +631,8 @@ def create_account(request, post_override=None):
 
     # Can't have terms of service for certain SHIB users, like at Stanford
     tos_not_required = settings.MITX_FEATURES.get("AUTH_USE_SHIB") \
-                       and settings.MITX_FEATURES.get('SHIB_DISABLE_TOS') \
-                       and DoExternalAuth and ("shib" in eamap.external_domain)
+                           and settings.MITX_FEATURES.get('SHIB_DISABLE_TOS') \
+                           and DoExternalAuth and ("shib" in eamap.external_domain)
 
     if not tos_not_required:
         if post_vars.get('terms_of_service', 'false') != u'true':
@@ -670,6 +677,7 @@ def create_account(request, post_override=None):
         return HttpResponse(json.dumps(js))
 
     # Ok, looks like everything is legit.  Create the account.
+    log.info("Reached here")
     ret = _do_create_account(post_vars)
     if isinstance(ret, HttpResponse):  # if there was an error then return that
         return ret
@@ -677,14 +685,14 @@ def create_account(request, post_override=None):
 
     d = {'name': post_vars['name'],
          'key': registration.activation_key,
-         }
+    }
 
     # composes activation email
     subject = render_to_string('emails/activation_email_subject.txt', d)
     # Email subject *must not* contain newlines
     subject = ''.join(subject.splitlines())
     message = render_to_string('emails/activation_email.txt', d)
-
+    log.info(message)
     # dont send email if we are doing load testing or random user generation for some reason
     if not (settings.MITX_FEATURES.get('AUTOMATIC_AUTH_FOR_LOAD_TESTING')):
         try:
@@ -692,10 +700,12 @@ def create_account(request, post_override=None):
                 dest_addr = settings.MITX_FEATURES['REROUTE_ACTIVATION_EMAIL']
                 message = ("Activation for %s (%s): %s\n" % (user, user.email, profile.name) +
                            '-' * 80 + '\n\n' + message)
+                log.info("there")
                 send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [dest_addr], fail_silently=False)
             else:
-                _res = user.email_user(subject, message, settings.DEFAULT_FROM_EMAIL)
+                res = user.email_user(subject, message, settings.DEFAULT_FROM_EMAIL)
         except:
+
             log.warning('Unable to send activation email to user', exc_info=True)
             js['value'] = _('Could not send activation e-mail.')
             return HttpResponse(json.dumps(js))
@@ -812,7 +822,7 @@ def begin_exam_registration(request, course_id):
                'testcenteruser': testcenteruser,
                'registration': registration,
                'exam_info': exam_info,
-               }
+    }
 
     return render_to_response('test_center_register.html', context)
 
@@ -841,12 +851,16 @@ def create_exam_registration(request, post_override=None):
     try:
         testcenter_user = TestCenterUser.objects.get(user=user)
         needs_updating = testcenter_user.needs_update(demographic_data)
-        log.info("User {0} enrolled in course {1} {2}updating demographic info for exam registration".format(user.username, course_id, "" if needs_updating else "not "))
+        log.info(
+            "User {0} enrolled in course {1} {2}updating demographic info for exam registration".format(user.username,
+                                                                                                        course_id,
+                                                                                                        "" if needs_updating else "not "))
     except TestCenterUser.DoesNotExist:
         # do additional initialization here:
         testcenter_user = TestCenterUser.create(user)
         needs_updating = True
-        log.info("User {0} enrolled in course {1} creating demographic info for exam registration".format(user.username, course_id))
+        log.info("User {0} enrolled in course {1} creating demographic info for exam registration".format(user.username,
+                                                                                                          course_id))
 
     # perform validation:
     if needs_updating:
@@ -895,27 +909,27 @@ def create_exam_registration(request, post_override=None):
             response_data['non_field_errors'] = form.non_field_errors()
             return HttpResponse(json.dumps(response_data), mimetype="application/json")
 
-    # only do the following if there is accommodation text to send,
-    # and a destination to which to send it.
-    # TODO: still need to create the accommodation email templates
-#    if 'accommodation_request' in post_vars and 'TESTCENTER_ACCOMMODATION_REQUEST_EMAIL' in settings:
-#        d = {'accommodation_request': post_vars['accommodation_request'] }
-#
-#        # composes accommodation email
-#        subject = render_to_string('emails/accommodation_email_subject.txt', d)
-#        # Email subject *must not* contain newlines
-#        subject = ''.join(subject.splitlines())
-#        message = render_to_string('emails/accommodation_email.txt', d)
-#
-#        try:
-#            dest_addr = settings['TESTCENTER_ACCOMMODATION_REQUEST_EMAIL']
-#            from_addr = user.email
-#            send_mail(subject, message, from_addr, [dest_addr], fail_silently=False)
-#        except:
-#            log.exception(sys.exc_info())
-#            response_data = {'success': False}
-#            response_data['non_field_errors'] =  [ 'Could not send accommodation e-mail.', ]
-#            return HttpResponse(json.dumps(response_data), mimetype="application/json")
+            # only do the following if there is accommodation text to send,
+            # and a destination to which to send it.
+            # TODO: still need to create the accommodation email templates
+        #    if 'accommodation_request' in post_vars and 'TESTCENTER_ACCOMMODATION_REQUEST_EMAIL' in settings:
+        #        d = {'accommodation_request': post_vars['accommodation_request'] }
+        #
+        #        # composes accommodation email
+        #        subject = render_to_string('emails/accommodation_email_subject.txt', d)
+        #        # Email subject *must not* contain newlines
+        #        subject = ''.join(subject.splitlines())
+        #        message = render_to_string('emails/accommodation_email.txt', d)
+        #
+        #        try:
+        #            dest_addr = settings['TESTCENTER_ACCOMMODATION_REQUEST_EMAIL']
+        #            from_addr = user.email
+        #            send_mail(subject, message, from_addr, [dest_addr], fail_silently=False)
+        #        except:
+        #            log.exception(sys.exc_info())
+        #            response_data = {'success': False}
+        #            response_data['non_field_errors'] =  [ 'Could not send accommodation e-mail.', ]
+        #            return HttpResponse(json.dumps(response_data), mimetype="application/json")
 
     js = {'success': True}
     return HttpResponse(json.dumps(js), mimetype="application/json")
@@ -987,9 +1001,10 @@ def activate_account(request, key):
             for cea in ceas:
                 if cea.auto_enroll:
                     course_id = cea.course_id
-                    _enrollment, _created = CourseEnrollment.objects.get_or_create(user_id=student[0].id, course_id=course_id)
+                    enrollment, created = CourseEnrollment.objects.get_or_create(user_id=student[0].id, course_id=course_id)
 
-        resp = render_to_response("registration/activation_complete.html", {'user_logged_in': user_logged_in, 'already_active': already_active})
+        resp = render_to_response("registration/activation_complete.html",
+                                  {'user_logged_in': user_logged_in, 'already_active': already_active})
         return resp
     if len(r) == 0:
         return render_to_response("registration/activation_invalid.html", {'csrf': csrf(request)['csrf_token']})
@@ -1103,7 +1118,7 @@ def change_email_request(request):
     subject = ''.join(subject.splitlines())
     message = render_to_string('emails/email_change.txt', d)
 
-    _res = send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [pec.new_email])
+    res = send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [pec.new_email])
 
     return HttpResponse(json.dumps({'success': True}))
 

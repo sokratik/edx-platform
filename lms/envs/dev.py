@@ -18,14 +18,14 @@ from logsettings import get_logger_config
 DEBUG = True
 TEMPLATE_DEBUG = True
 
-
 MITX_FEATURES['DISABLE_START_DATES'] = True
 MITX_FEATURES['ENABLE_SQL_TRACKING_LOGS'] = True
 MITX_FEATURES['SUBDOMAIN_COURSE_LISTINGS'] = False  # Enable to test subdomains--otherwise, want all courses to show up
 MITX_FEATURES['SUBDOMAIN_BRANDING'] = True
-MITX_FEATURES['FORCE_UNIVERSITY_DOMAIN'] = None		# show all university courses if in dev (ie don't use HTTP_HOST)
+MITX_FEATURES['FORCE_UNIVERSITY_DOMAIN'] = None        # show all university courses if in dev (ie don't use HTTP_HOST)
 MITX_FEATURES['ENABLE_MANUAL_GIT_RELOAD'] = True
-MITX_FEATURES['ENABLE_PSYCHOMETRICS'] = False    # real-time psychometrics (eg item response theory analysis in instructor dashboard)
+MITX_FEATURES[
+    'ENABLE_PSYCHOMETRICS'] = False    # real-time psychometrics (eg item response theory analysis in instructor dashboard)
 MITX_FEATURES['ENABLE_INSTRUCTOR_ANALYTICS'] = True
 MITX_FEATURES['ENABLE_SERVICE_STATUS'] = True
 MITX_FEATURES['ENABLE_HINTER_INSTRUCTOR_VIEW'] = True
@@ -40,9 +40,11 @@ LOGGING = get_logger_config(ENV_ROOT / "log",
                             debug=True)
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': ENV_ROOT / "db" / "mitx.db",
+    "default": {
+        "ENGINE": "django.db.backends.postgresql_psycopg2",
+        "NAME": "sokratik",
+        "HOST": "postgres.sokratik.com",
+        "PORT": "",
     }
 }
 
@@ -75,7 +77,6 @@ CACHES = {
     }
 }
 
-
 XQUEUE_INTERFACE = {
     "url": "https://sandbox-xqueue.edx.org",
     "django_auth": {
@@ -91,7 +92,6 @@ CACHE_TIMEOUT = 0
 # Dummy secret key for dev
 SECRET_KEY = '85920908f28904ed733fe576320db18cabd7b6cd'
 
-
 COURSE_LISTINGS = {
     'default': ['BerkeleyX/CS169.1x/2012_Fall',
                 'BerkeleyX/CS188.1x/2012_Fall',
@@ -106,7 +106,6 @@ COURSE_LISTINGS = {
     'mit': ['MITx/3.091/MIT_2012_Fall'],
     'sjsu': ['MITx/6.002x-EE98/2012_Fall_SJSU'],
 }
-
 
 SUBDOMAIN_BRANDING = {
     'sjsu': 'MITx',
@@ -152,17 +151,18 @@ MITX_VERSION_STRING = os.popen('cd %s; git describe' % REPO_ROOT).read().strip()
 ############################ Open ended grading config  #####################
 
 OPEN_ENDED_GRADING_INTERFACE = {
-    'url' : 'http://127.0.0.1:3033/',
-    'username' : 'lms',
-    'password' : 'abcd',
-    'staff_grading' : 'staff_grading',
-    'peer_grading' : 'peer_grading',
-    'grading_controller' : 'grading_controller'
+    'url': 'http://127.0.0.1:3033/',
+    'username': 'lms',
+    'password': 'abcd',
+    'staff_grading': 'staff_grading',
+    'peer_grading': 'peer_grading',
+    'grading_controller': 'grading_controller'
 }
 
 ############################## LMS Migration ##################################
 MITX_FEATURES['ENABLE_LMS_MIGRATION'] = True
-MITX_FEATURES['ACCESS_REQUIRE_STAFF_FOR_COURSE'] = False   # require that user be in the staff_* group to be able to enroll
+MITX_FEATURES[
+    'ACCESS_REQUIRE_STAFF_FOR_COURSE'] = False   # require that user be in the staff_* group to be able to enroll
 MITX_FEATURES['USE_XQA_SERVER'] = 'http://xqa:server@content-qa.mitx.mit.edu/xqa'
 
 INSTALLED_APPS += ('lms_migration',)
@@ -202,20 +202,20 @@ MIDDLEWARE_CLASSES += ('django_comment_client.utils.QueryCountDebugMiddleware',
 INTERNAL_IPS = ('127.0.0.1',)
 
 DEBUG_TOOLBAR_PANELS = (
-   'debug_toolbar.panels.version.VersionDebugPanel',
-   'debug_toolbar.panels.timer.TimerDebugPanel',
-   'debug_toolbar.panels.settings_vars.SettingsVarsDebugPanel',
-   'debug_toolbar.panels.headers.HeaderDebugPanel',
-   'debug_toolbar.panels.request_vars.RequestVarsDebugPanel',
-   'debug_toolbar.panels.sql.SQLDebugPanel',
-   'debug_toolbar.panels.signals.SignalDebugPanel',
-   'debug_toolbar.panels.logger.LoggingPanel',
+    'debug_toolbar.panels.version.VersionDebugPanel',
+    'debug_toolbar.panels.timer.TimerDebugPanel',
+    'debug_toolbar.panels.settings_vars.SettingsVarsDebugPanel',
+    'debug_toolbar.panels.headers.HeaderDebugPanel',
+    'debug_toolbar.panels.request_vars.RequestVarsDebugPanel',
+    'debug_toolbar.panels.sql.SQLDebugPanel',
+    'debug_toolbar.panels.signals.SignalDebugPanel',
+    'debug_toolbar.panels.logger.LoggingPanel',
 
-#  Enabling the profiler has a weird bug as of django-debug-toolbar==0.9.4 and
-#  Django=1.3.1/1.4 where requests to views get duplicated (your method gets
-#  hit twice). So you can uncomment when you need to diagnose performance
-#  problems, but you shouldn't leave it on.
-#  'debug_toolbar.panels.profiling.ProfilingDebugPanel',
+    #  Enabling the profiler has a weird bug as of django-debug-toolbar==0.9.4 and
+    #  Django=1.3.1/1.4 where requests to views get duplicated (your method gets
+    #  hit twice). So you can uncomment when you need to diagnose performance
+    #  problems, but you shouldn't leave it on.
+    #  'debug_toolbar.panels.profiling.ProfilingDebugPanel',
 )
 
 DEBUG_TOOLBAR_CONFIG = {
@@ -225,7 +225,7 @@ DEBUG_TOOLBAR_CONFIG = {
 #################### FILE UPLOADS (for discussion forums) #####################
 
 DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
-MEDIA_ROOT = ENV_ROOT / "uploads"
+MEDIA_ROOT = "/usr/local/www/edx-app/lms/uploads"
 MEDIA_URL = "/static/uploads/"
 STATICFILES_DIRS.append(("uploads", MEDIA_ROOT))
 FILE_UPLOAD_TEMP_DIR = ENV_ROOT / "uploads"
@@ -236,10 +236,12 @@ FILE_UPLOAD_HANDLERS = (
 
 MITX_FEATURES['AUTH_USE_SHIB'] = True
 MITX_FEATURES['RESTRICT_ENROLL_BY_REG_METHOD'] = True
+MITX_FEATURES['USE_DJANGO_PIPELINE'] = True
 
 ########################### PIPELINE #################################
 
-PIPELINE_SASS_ARGUMENTS = '--debug-info --require {proj_dir}/static/sass/bourbon/lib/bourbon.rb'.format(proj_dir=PROJECT_ROOT)
+PIPELINE_SASS_ARGUMENTS = '--debug-info --require {proj_dir}/static/sass/bourbon/lib/bourbon.rb'.format(
+    proj_dir=PROJECT_ROOT)
 
 ########################## PEARSON TESTING ###########################
 MITX_FEATURES['ENABLE_PEARSON_LOGIN'] = False

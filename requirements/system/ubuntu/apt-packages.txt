@@ -22,14 +22,14 @@ yui-compressor
 graphviz
 libgraphviz-dev
 graphviz-dev
-mysql-server
 libmysqlclient-dev
 libgeos-dev
 libreadline6
 libreadline6-dev
-mongodb
+mongodb-10gen
 nodejs
 coffeescript
-mysql-client
 virtualenvwrapper
 libgeos-ruby1.8
+postgresql-server-dev-9.1
+postgresql-9.1

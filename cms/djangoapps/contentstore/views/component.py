@@ -273,7 +273,7 @@ def create_draft(request):
     "Create a draft"
     location = request.POST['id']
 
-    # check permissions for this user within this course
+    # check permissions for this user within this coursem
     if not has_access(request.user, location):
         raise PermissionDenied()
 
