@@ -95,6 +95,7 @@ def index(request, extra_context={}, user=None):
     courses = sort_by_announcement(courses)
 
     context = {'courses': courses}
+
     context.update(extra_context)
     return render_to_response('index.html', context)
 
@@ -255,13 +256,12 @@ def register_user(request, extra_context=None):
 @ensure_csrf_cookie
 def dashboard(request):
     user = request.user
-    enrollments = CourseEnrollment.objects.filter(user=user)
 
     # Build our courses list for the user, but ignore any courses that no longer
     # exist (because the course IDs have changed). Still, we don't delete those
     # enrollments, because it could have been a data push snafu.
     courses = []
-    for enrollment in enrollments:
+    for enrollment in CourseEnrollment.enrollments_for_user(user):
         try:
             courses.append(course_from_id(enrollment.course_id))
         except ItemNotFoundError:
@@ -378,18 +378,13 @@ def change_enrollment(request):
                                "course:{0}".format(course_num),
                                "run:{0}".format(run)])
 
-        try:
-            enrollment, _created = CourseEnrollment.objects.get_or_create(user=user, course_id=course.id)
-        except IntegrityError:
-            # If we've already created this enrollment in a separate transaction,
-            # then just continue
-            pass
+        CourseEnrollment.enroll(user, course.id)
+
         return HttpResponse()
 
     elif action == "unenroll":
         try:
-            enrollment = CourseEnrollment.objects.get(user=user, course_id=course_id)
-            enrollment.delete()
+            CourseEnrollment.unenroll(user, course_id)
 
             org, course_num, run = course_id.split("/")
             statsd.increment("common.student.unenrollment",
@@ -403,11 +398,9 @@ def change_enrollment(request):
     else:
         return HttpResponseBadRequest(_("Enrollment action is invalid"))
 
-
 @ensure_csrf_cookie
 def accounts_login(request, error=""):
     return render_to_response('login.html', {'error': error})
-
 
 # Need different levels of logging
 @ensure_csrf_cookie
@@ -694,7 +687,7 @@ def create_account(request, post_override=None):
     message = render_to_string('emails/activation_email.txt', d)
     log.info(message)
     # dont send email if we are doing load testing or random user generation for some reason
-    if not (settings.MITX_FEATURES.get('AUTOMATIC_AUTH_FOR_LOAD_TESTING')):
+    if not (settings.MITX_FEATURES.get('AUTOMATIC_AUTH_FOR_TESTING')):
         try:
             if settings.MITX_FEATURES.get('REROUTE_ACTIVATION_EMAIL'):
                 dest_addr = settings.MITX_FEATURES['REROUTE_ACTIVATION_EMAIL']
@@ -939,31 +932,36 @@ def auto_auth(request):
     """
     Automatically logs the user in with a generated random credentials
     This view is only accessible when
-    settings.MITX_SETTINGS['AUTOMATIC_AUTH_FOR_LOAD_TESTING'] is true.
+    settings.MITX_SETTINGS['AUTOMATIC_AUTH_FOR_TESTING'] is true.
     """
 
-    def get_dummy_post_data(username, password):
+    def get_dummy_post_data(username, password, email, name):
         """
         Return a dictionary suitable for passing to post_vars of _do_create_account or post_override
-        of create_account, with specified username and password.
+        of create_account, with specified values.
         """
-
         return {'username': username,
-                'email': username + "_dummy_test@mitx.mit.edu",
+                'email': email,
                 'password': password,
-                'name': username + " " + username,
+                'name': name,
                 'honor_code': u'true',
                 'terms_of_service': u'true', }
 
-    # generate random user ceredentials from a small name space (determined by settings)
+    # generate random user credentials from a small name space (determined by settings)
     name_base = 'USER_'
     pass_base = 'PASS_'
 
     max_users = settings.MITX_FEATURES.get('MAX_AUTO_AUTH_USERS', 200)
     number = random.randint(1, max_users)
 
-    username = name_base + str(number)
-    password = pass_base + str(number)
+    # Get the params from the request to override default user attributes if specified
+    qdict = request.GET
+
+    # Use the params from the request, otherwise use these defaults
+    username = qdict.get('username', name_base + str(number))
+    password = qdict.get('password', pass_base + str(number))
+    email = qdict.get('email', '%s_dummy_test@mitx.mit.edu' % username)
+    name = qdict.get('name', '%s Test' % username)
 
     # if they already are a user, log in
     try:
@@ -973,7 +971,7 @@ def auto_auth(request):
 
     # else create and activate account info
     except ObjectDoesNotExist:
-        post_override = get_dummy_post_data(username, password)
+        post_override = get_dummy_post_data(username, password, email, name)
         create_account(request, post_override=post_override)
         request.user.is_active = True
         request.user.save()
@@ -1007,7 +1005,10 @@ def activate_account(request, key):
                                   {'user_logged_in': user_logged_in, 'already_active': already_active})
         return resp
     if len(r) == 0:
-        return render_to_response("registration/activation_invalid.html", {'csrf': csrf(request)['csrf_token']})
+        return render_to_response(
+            "registration/activation_invalid.html",
+            {'csrf': csrf(request)['csrf_token']}
+        )
     return HttpResponse(_("Unknown error. Please e-mail us to let us know how it happened."))
 
 
@@ -1030,7 +1031,11 @@ def password_reset(request):
                                         'error': _('Invalid e-mail or user')}))
 
 
-def password_reset_confirm_wrapper(request, uidb36=None, token=None):
+def password_reset_confirm_wrapper(
+    request,
+    uidb36=None,
+    token=None,
+):
     ''' A wrapper around django.contrib.auth.views.password_reset_confirm.
         Needed because we want to set the user as active at this step.
     '''
@@ -1042,7 +1047,12 @@ def password_reset_confirm_wrapper(request, uidb36=None, token=None):
         user.save()
     except (ValueError, User.DoesNotExist):
         pass
-    return password_reset_confirm(request, uidb36=uidb36, token=token)
+    # we also want to pass settings.PLATFORM_NAME in as extra_context
+
+    extra_context = {"platform_name": settings.PLATFORM_NAME}
+    return password_reset_confirm(
+        request, uidb36=uidb36, token=token, extra_context=extra_context
+    )
 
 
 def reactivation_email_for_user(user):
