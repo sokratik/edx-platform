@@ -5,6 +5,7 @@ import os
 from .common import *
 from logsettings import get_logger_config
 from os.path import expanduser
+from theming_utils.template_customizer import enable_theme
 
 
 ENV_ROOT = REPO_ROOT.dirname()  # virtualenv dir /mitx is in

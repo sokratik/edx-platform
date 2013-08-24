@@ -15,6 +15,7 @@ import json
 
 from .common import *
 from logsettings import get_logger_config
+from theming_utils.template_customizer import enable_theme
 import os
 
 # specified as an environment variable.  Typically this is set
@@ -131,7 +132,7 @@ BUGS_EMAIL = ENV_TOKENS.get('BUGS_EMAIL', BUGS_EMAIL)
 #Theme overrides
 THEME_NAME = ENV_TOKENS.get('THEME_NAME', None)
 if not THEME_NAME is None:
-    enable_theme(THEME_NAME)
+    enable_theme(THEME_NAME,locals())
     FAVICON_PATH = 'themes/%s/images/favicon.ico' % THEME_NAME
 
 # Marketing link overrides
