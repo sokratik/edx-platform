@@ -80,31 +80,29 @@ urlpatterns += (
 )
 
 # Semi-static views only used by edX, not by themes
-if not settings.MITX_FEATURES["USE_CUSTOM_THEME"]:
-    urlpatterns += (
-        url(r'^jobs$', 'static_template_view.views.render',
-            {'template': 'jobs.html'}, name="jobs"),
-        url(r'^press$', 'student.views.press', name="press"),
-        url(r'^media-kit$', 'static_template_view.views.render',
-            {'template': 'media-kit.html'}, name="media-kit"),
-        url(r'^faq$', 'static_template_view.views.render',
-            {'template': 'faq.html'}, name="faq_edx"),
-        url(r'^help$', 'static_template_view.views.render',
-            {'template': 'help.html'}, name="help_edx"),
+urlpatterns += (
+    url(r'^jobs$', 'static_template_view.views.render',
+        {'template': 'jobs.html'}, name="jobs"),
+    url(r'^press$', 'student.views.press', name="press"),
+    url(r'^media-kit$', 'static_template_view.views.render',
+        {'template': 'media-kit.html'}, name="media-kit"),
+    url(r'^faq$', 'static_template_view.views.render',
+        {'template': 'faq.html'}, name="faq_edx"),
+    url(r'^help$', 'static_template_view.views.render',
+        {'template': 'help.html'}, name="help_edx"),
 
-        # TODO: (bridger) The copyright has been removed until it is updated for edX
-        # url(r'^copyright$', 'static_template_view.views.render',
-        #     {'template': 'copyright.html'}, name="copyright"),
+    # TODO: (bridger) The copyright has been removed until it is updated for edX
+    # url(r'^copyright$', 'static_template_view.views.render',
+    #     {'template': 'copyright.html'}, name="copyright"),
 
-        #Press releases
-        url(r'^press/([_a-zA-Z0-9-]+)$', 'static_template_view.views.render_press_release', name='press_release'),
+    #Press releases
+    url(r'^press/([_a-zA-Z0-9-]+)$', 'static_template_view.views.render_press_release', name='press_release'),
 
-        # Favicon
-        (r'^favicon\.ico$', 'django.views.generic.simple.redirect_to', {'url': '/static/images/favicon.ico'}),
+    # Favicon
+    (r'^favicon\.ico$', 'django.views.generic.simple.redirect_to', {'url': '/static/images/favicon.ico'}),
 
-        url(r'^submit_feedback$', 'util.views.submit_feedback'),
-
-    )
+    url(r'^submit_feedback$', 'util.views.submit_feedback'),
+)
 
 # Only enable URLs for those marketing links actually enabled in the
 # settings. Disable URLs by marking them as None.

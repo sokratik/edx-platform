@@ -28,7 +28,7 @@
 ## point can be used to @import in as many other things as needed.
 % if env.get('THEME_NAME') is not None:
   // import theme's Sass overrides
-  @import '${env.get('THEME_NAME')}';
+  @import '${env.get('THEME_DIRECTORY')}${env.get('THEME_NAME')}';
 % endif
 
 @import 'base/base';

@@ -1001,7 +1001,8 @@ def activate_account(request, key):
                     course_id = cea.course_id
                     enrollment, created = CourseEnrollment.objects.get_or_create(user_id=student[0].id, course_id=course_id)
 
-        resp = render_to_response("registration/activation_complete.html", {'user_logged_in': user_logged_in, 'already_active': already_active})
+        resp = render_to_response("registration/activation_complete.html",
+                                  {'user_logged_in': user_logged_in, 'already_active': already_active})
         return resp
     if len(r) == 0:
         return render_to_response(
@@ -1127,7 +1128,7 @@ def change_email_request(request):
     subject = ''.join(subject.splitlines())
     message = render_to_string('emails/email_change.txt', d)
 
-    _res = send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [pec.new_email])
+    res = send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [pec.new_email])
 
     return HttpResponse(json.dumps({'success': True}))
 
