@@ -13,7 +13,8 @@ from os.path import expanduser
 
 
 ENV_ROOT = REPO_ROOT.dirname()  # virtualenv dir /mitx is in
-CONFIG_ROOT = path(expanduser("~")) / "sokratik-infra/json-configs"
+HOME_FOLDER = path(expanduser("~"))
+CONFIG_ROOT = path("/local/sokratik-infra/json-configs")
 
 # specified as an environment variable.  Typically this is set
 # in the service's upstart script and corresponds exactly to the service name.

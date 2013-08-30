@@ -4,12 +4,10 @@ import os
 
 from .common import *
 from logsettings import get_logger_config
-from os.path import expanduser
-from theming_utils.template_customizer import enable_theme
 
 
 ENV_ROOT = REPO_ROOT.dirname()  # virtualenv dir /mitx is in
-CONFIG_ROOT = path(expanduser("~")) / "sokratik-infra/json-configs"
+CONFIG_ROOT = path("/local/sokratik-infra/json-configs")
 
 # specified as an environment variable.  Typically this is set
 # in the service's upstart script and corresponds exactly to the service name.
