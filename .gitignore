@@ -16,6 +16,7 @@ courseware/static/js/mathjax/*
 flushdb.sh
 build
 .coverage
+*.iml
 coverage.xml
 cover/
 log/
